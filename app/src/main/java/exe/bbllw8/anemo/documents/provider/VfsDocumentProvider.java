@@ -41,6 +41,7 @@ import exe.bbllw8.anemo.documents.vfs.VfsNode;
 public abstract class VfsDocumentProvider extends DocumentsProvider {
     private static final String TAG = "VfsDocumentProvider";
     private static final int MAX_SEARCH_RESULTS = 23;
+    private static final int PROXY_HANDLER_COUNT = 4;
     private static final String[] DEFAULT_PROJECTION = {
             Document.COLUMN_DOCUMENT_ID,
             Document.COLUMN_MIME_TYPE,
@@ -50,29 +51,47 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
             Document.COLUMN_SIZE,
     };
 
-    private HandlerThread handlerThread;
-    private Handler handler;
+    private HandlerThread[] handlerThreads;
+    private Handler[] handlers;
 
     @Override
     public boolean onCreate() {
-        handlerThread = new HandlerThread("anemo-vfs-proxy");
-        handlerThread.start();
-        handler = new Handler(handlerThread.getLooper());
+        handlerThreads = new HandlerThread[PROXY_HANDLER_COUNT];
+        handlers = new Handler[PROXY_HANDLER_COUNT];
+        for (int i = 0; i < PROXY_HANDLER_COUNT; i++) {
+            handlerThreads[i] = new HandlerThread("anemo-vfs-proxy-" + i);
+            handlerThreads[i].start();
+            handlers[i] = new Handler(handlerThreads[i].getLooper());
+        }
         return true;
     }
 
     @Override
     public void shutdown() {
-        if (handlerThread != null) {
-            handlerThread.quitSafely();
-            handlerThread = null;
+        if (handlerThreads != null) {
+            for (HandlerThread t : handlerThreads) {
+                if (t != null) {
+                    t.quitSafely();
+                }
+            }
+            handlerThreads = null;
         }
-        handler = null;
+        handlers = null;
         super.shutdown();
     }
 
+    /** Fallback for callers without a document id; prefer getHandlerForDocument. */
     protected final Handler getHandler() {
-        return handler;
+        return handlers == null ? null : handlers[0];
+    }
+
+    /** Hash the document id into the pool so one file always lands on one thread. */
+    protected final Handler getHandlerForDocument(String documentId) {
+        if (handlers == null) {
+            return null;
+        }
+        final int idx = Math.floorMod(documentId.hashCode(), PROXY_HANDLER_COUNT);
+        return handlers[idx];
     }
 
     protected final StorageManager getStorageManager() {
@@ -287,7 +306,8 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
         }
         final ProxyFileDescriptorCallback callback = new InMemoryFileCallback(getVfs(), node);
         try {
-            return getStorageManager().openProxyFileDescriptor(pfdMode, callback, getHandler());
+            return getStorageManager().openProxyFileDescriptor(
+                    pfdMode, callback, getHandlerForDocument(documentId));
         } catch (IOException e) {
             throw new FileNotFoundException("Could not open " + documentId + ": " + e);
         }
