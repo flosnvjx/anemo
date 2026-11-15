@@ -4,10 +4,12 @@
  */
 package exe.bbllw8.anemo.config;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Insets;
 import android.os.Build;
 import android.os.Bundle;
@@ -28,19 +30,24 @@ import java.util.function.Consumer;
 import exe.bbllw8.anemo.R;
 import exe.bbllw8.anemo.config.password.ChangePasswordDialog;
 import exe.bbllw8.anemo.config.password.SetPasswordDialog;
+import exe.bbllw8.anemo.documents.provider.AnemoDocumentProvider;
 import exe.bbllw8.anemo.documents.settings.StorageSettings;
+import exe.bbllw8.anemo.documents.vfs.Vfs;
 import exe.bbllw8.anemo.lock.LockStore;
 import exe.bbllw8.anemo.lock.UnlockActivity;
 import exe.bbllw8.anemo.power.BatteryOptimizationHelper;
+import exe.bbllw8.anemo.power.KeepAliveService;
 import exe.bbllw8.anemo.shell.AnemoShell;
 
 public final class ConfigurationActivity extends Activity {
+    private static final int NOTIFICATION_PERMISSION_REQ = 42;
 
     private ViewGroup rootView;
     private TextView passwordSetView;
     private TextView changeLockView;
     private TextView batteryOptimizationView;
     private TextView storageQuotaView;
+    private TextView storageUsageView;
     private TextView thumbnailExtensionsView;
     private TextView thumbnailMaxSizeView;
     private Switch thumbnailsSwitch;
@@ -102,6 +109,9 @@ public final class ConfigurationActivity extends Activity {
         storageQuotaView = findViewById(R.id.configuration_storage_quota);
         storageQuotaView.setOnClickListener($ -> showQuotaDialog());
 
+        storageUsageView = findViewById(R.id.configuration_storage_usage);
+        storageUsageView.setOnClickListener($ -> showStorageUsageDialog());
+
         biometricSwitch = findViewById(R.id.configuration_biometric_unlock);
         biometricSwitch.setVisibility(lockStore.canAuthenticateBiometric()
                 ? View.VISIBLE
@@ -114,6 +124,9 @@ public final class ConfigurationActivity extends Activity {
         updateBatteryOptimizationView();
         updateQuotaView();
         updateThumbnailSubOptions();
+        updateStorageUsageView();
+
+        maybeRequestNotificationPermission();
     }
 
     @Override
@@ -121,6 +134,7 @@ public final class ConfigurationActivity extends Activity {
         super.onResume();
         updateBatteryOptimizationView();
         updateQuotaView();
+        updateStorageUsageView();
     }
 
     @Override
@@ -128,6 +142,34 @@ public final class ConfigurationActivity extends Activity {
         super.onDestroy();
         lockStore.removeListener(onLockChanged);
         storageSettings.removeListener(onSettingsChanged);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                           int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == NOTIFICATION_PERMISSION_REQ) {
+            storageSettings.markNotificationPromptShown();
+            if (grantResults.length > 0
+                    && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                KeepAliveService.start(this);
+            }
+        }
+    }
+
+    private void maybeRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < 33) {
+            return;
+        }
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        if (storageSettings.wasNotificationPromptShown()) {
+            return;
+        }
+        requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                NOTIFICATION_PERMISSION_REQ);
     }
 
     private void setupPasswordViews() {
@@ -167,6 +209,13 @@ public final class ConfigurationActivity extends Activity {
         storageQuotaView.setText(getString(R.string.configuration_storage_quota_value, value));
     }
 
+    private void updateStorageUsageView() {
+        final Vfs vfs = AnemoDocumentProvider.getVfsInstance();
+        final long used = vfs == null ? 0L : vfs.getTotalBytes();
+        storageUsageView.setText(getString(R.string.configuration_storage_usage_value,
+                formatBytes(used)));
+    }
+
     private void updateThumbnailSubOptions() {
         final int visibility = thumbnailsSwitch.isChecked() ? View.VISIBLE : View.GONE;
         thumbnailExtensionsView.setVisibility(visibility);
@@ -191,6 +240,30 @@ public final class ConfigurationActivity extends Activity {
                 getString(R.string.configuration_storage_quota_unit));
         thumbnailMaxSizeView.setText(
                 getString(R.string.configuration_thumbnail_max_size_value, value));
+    }
+
+    private void showStorageUsageDialog() {
+        final Vfs vfs = AnemoDocumentProvider.getVfsInstance();
+        final long[] counts;
+        final long used;
+        if (vfs == null) {
+            counts = new long[]{0L, 0L};
+            used = 0L;
+        } else {
+            counts = vfs.getTreeCounts();
+            used = vfs.getTotalBytes();
+        }
+        final String message = getString(R.string.configuration_storage_usage_details,
+                counts[0], counts[1], used, formatBytes(used));
+        new AlertDialog.Builder(this, R.style.DialogTheme)
+                .setTitle(R.string.configuration_storage_usage)
+                .setMessage(message)
+                .setPositiveButton(R.string.keep_alive_action_nuke, (d, which) -> {
+                    AnemoDocumentProvider.nuke(this);
+                    updateStorageUsageView();
+                })
+                .setNegativeButton(R.string.configuration_storage_usage_close, null)
+                .show();
     }
 
     private void showQuotaDialog() {
@@ -307,6 +380,20 @@ public final class ConfigurationActivity extends Activity {
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    private static String formatBytes(long bytes) {
+        if (bytes < 1024L) {
+            return bytes + " B";
+        }
+        double value = bytes;
+        final String[] units = {"KiB", "MiB", "GiB", "TiB", "PiB"};
+        int unit = -1;
+        while (value >= 1024.0 && unit < units.length - 1) {
+            value /= 1024.0;
+            unit++;
+        }
+        return String.format(Locale.getDefault(), "%.1f %s", value, units[unit]);
     }
 
     private final Consumer<Boolean> onLockChanged = isLocked -> {

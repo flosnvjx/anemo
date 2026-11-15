@@ -9,22 +9,18 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.graphics.drawable.Icon;
 import android.os.Build;
 import android.os.IBinder;
-import android.provider.DocumentsContract;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
 
 import exe.bbllw8.anemo.R;
-import exe.bbllw8.anemo.documents.home.HomeEnvironment;
 import exe.bbllw8.anemo.documents.provider.AnemoDocumentProvider;
-import exe.bbllw8.anemo.documents.vfs.Vfs;
 import exe.bbllw8.anemo.shell.LauncherActivity;
 
 public final class KeepAliveService extends Service {
@@ -72,13 +68,13 @@ public final class KeepAliveService extends Service {
 
         final String action = intent != null ? intent.getAction() : null;
         if (ACTION_NUKE_EXIT.equals(action)) {
-            nukeAllFiles();
+            AnemoDocumentProvider.nuke(this);
             stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
             return START_NOT_STICKY;
         }
         if (ACTION_NUKE.equals(action)) {
-            nukeAllFiles();
+            AnemoDocumentProvider.nuke(this);
         }
         return START_STICKY;
     }
@@ -87,18 +83,6 @@ public final class KeepAliveService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return null;
-    }
-
-    private void nukeAllFiles() {
-        final Vfs vfs = AnemoDocumentProvider.getVfsInstance();
-        if (vfs == null) {
-            return;
-        }
-        vfs.deleteAllChildren();
-        final ContentResolver cr = getContentResolver();
-        cr.notifyChange(DocumentsContract.buildRootsUri(HomeEnvironment.AUTHORITY), null);
-        cr.notifyChange(DocumentsContract.buildChildDocumentsUri(
-                HomeEnvironment.AUTHORITY, HomeEnvironment.ROOT_DOC_ID), null);
     }
 
     private Notification buildNotification() {

@@ -28,6 +28,32 @@ public final class Vfs {
         return totalBytes.get();
     }
 
+    /**
+     * Snapshot of the current tree contents.
+     *
+     * @return a two-element array: {@code [0]} is the file count, {@code [1]} is the directory
+     *     count (the root node itself is not counted).
+     */
+    public long[] getTreeCounts() {
+        final long[] counts = new long[2];
+        final VfsNode root = nodes.get(ROOT_ID);
+        if (root != null) {
+            countRecursive(root, counts);
+        }
+        return counts;
+    }
+
+    private void countRecursive(VfsNode node, long[] counts) {
+        for (final VfsNode child : listChildren(node)) {
+            if (child.isDirectory) {
+                counts[1]++;
+                countRecursive(child, counts);
+            } else {
+                counts[0]++;
+            }
+        }
+    }
+
     public long getMaxBytes() {
         return maxBytes;
     }

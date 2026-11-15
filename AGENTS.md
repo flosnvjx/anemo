@@ -36,13 +36,15 @@ The DocumentsProvider must not be ejectable or unmountable. Do not set Root.FLAG
 
 The DocumentsProvider must not be exposed through a Quick Settings tile or an auto-lock job service.
 
-First-run battery optimization and notification permission prompts are shown from UnlockActivity, which LauncherActivity routes through when needed. If the system prompt cannot be shown, the user can reach the same settings from ConfigurationActivity.
+First-run battery optimization and notification permission prompts are shown from UnlockActivity, which LauncherActivity routes through when needed. ConfigurationActivity also prompts for the notification permission when it is opened and the permission has never been requested; it does not prompt for battery optimization because that setting is exposed in the same screen. If the system prompt cannot be shown, the user can reach the same settings from the system application settings screen.
 
 The keep-alive foreground service must declare both dataSync and specialUse foregroundServiceType in the manifest. The type passed to startForeground is selected by SDK version: specialUse on API 34+, dataSync on API 29 to 33, no type before that. startForeground failures must be logged and must stop the service; do not swallow them silently.
 
 The keep-alive service is only started when POST_NOTIFICATIONS is granted on API 33+. Without a visible notification the service would be killed or would display a misleading system notification.
 
 The keep-alive notification exposes two actions: Nuke and Nuke & Exit. Both clear every file from the VFS and refresh the DocumentsUI roots; Nuke & Exit additionally stops the service. The actions must be standard Notification.Action entries so they are revealed only when the notification is expanded; do not replace them with direct content intents, custom RemoteViews, or notification styles that pin actions on the collapsed view. Action icons must be monochrome framework drawables (android.R.drawable); do not introduce new icon resources for them.
+
+The Configuration screen shows a Storage usage entry whose value is the used bytes in human-readable form. Tapping it opens a dialog reporting the file count, the directory count, and the used bytes as raw bytes followed by the human-readable form. The dialog exposes exactly two actions: a Close button that dismisses it, and a Nuke button that performs the same operation as the notification Nuke action. The nuke operation is implemented once as AnemoDocumentProvider.nuke(Context) and reused by both the notification and the Configuration dialog; do not duplicate the deletion or notifyChange logic.
 
 The notification small icon must be a monochrome drawable. Do not use the adaptive launcher icon.
 

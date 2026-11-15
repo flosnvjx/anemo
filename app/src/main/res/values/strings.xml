@@ -83,6 +83,11 @@
     <string name="configuration_storage_quota_too_large" formatted="false">Quota cannot exceed 95% of available system memory</string>
     <string name="configuration_storage_quota_unit">MiB</string>
 
+    <string name="configuration_storage_usage">Storage usage</string>
+    <string name="configuration_storage_usage_value">Storage usage: %1$s</string>
+    <string name="configuration_storage_usage_details">Files: %1$d\nDirectories: %2$d\nUsed: %3$d bytes (%4$s)</string>
+    <string name="configuration_storage_usage_close">Close</string>
+
     <string name="configuration_battery_optimization">Ignore battery optimizations</string>
     <string name="configuration_battery_optimization_done">Battery optimizations are disabled</string>
 

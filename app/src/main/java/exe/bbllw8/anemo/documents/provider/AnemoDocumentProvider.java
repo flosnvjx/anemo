@@ -6,6 +6,7 @@ package exe.bbllw8.anemo.documents.provider;
 
 import android.app.AuthenticationRequiredException;
 import android.app.PendingIntent;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
@@ -53,6 +54,23 @@ public final class AnemoDocumentProvider extends VfsDocumentProvider {
 
     public static Vfs getVfsInstance() {
         return sVfs;
+    }
+
+    /**
+     * Deletes every file and directory stored in the VFS and refreshes the DocumentsUI URIs.
+     * Safe to call from any component in the same process: if the provider has never been
+     * created, the call is a no-op because there is no in-memory data to delete.
+     */
+    public static void nuke(Context context) {
+        final Vfs vfs = sVfs;
+        if (vfs == null) {
+            return;
+        }
+        vfs.deleteAllChildren();
+        final ContentResolver cr = context.getContentResolver();
+        cr.notifyChange(DocumentsContract.buildRootsUri(HomeEnvironment.AUTHORITY), null);
+        cr.notifyChange(DocumentsContract.buildChildDocumentsUri(
+                HomeEnvironment.AUTHORITY, HomeEnvironment.ROOT_DOC_ID), null);
     }
 
     @Override
