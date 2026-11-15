@@ -51,14 +51,6 @@ public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
     }
 
     @Override
-    public void onTruncate(long size) {
-        synchronized (node) {
-            node.data = Arrays.copyOf(node.data, (int) size);
-            node.lastModified = System.currentTimeMillis();
-        }
-    }
-
-    @Override
     public void onFsync() {
         // no-op: data lives in memory
     }

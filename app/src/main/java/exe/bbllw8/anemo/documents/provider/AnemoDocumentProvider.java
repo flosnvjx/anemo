@@ -182,8 +182,7 @@ public final class AnemoDocumentProvider extends VfsDocumentProvider {
     }
 
     @Override
-    public String copyDocument(String sourceDocumentId, String targetParentDocumentId)
-            throws FileNotFoundException {
+    public String copyDocument(String sourceDocumentId, String targetParentDocumentId) {
         assertUnlocked();
         return super.copyDocument(sourceDocumentId, targetParentDocumentId);
     }
@@ -221,4 +220,3 @@ public final class AnemoDocumentProvider extends VfsDocumentProvider {
         }
     };
 }
-
