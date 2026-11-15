@@ -62,6 +62,7 @@
     <string name="configuration_storage_lock">Lock storage access</string>
     <string name="configuration_storage_unlock">Unlock storage access</string>
     <string name="configuration_storage_unlock_biometric">Allow storage unlock with biometric access</string>
+    <string name="configuration_storage_lock_auto">Automatically lock access after 15 minutes</string>
     <string name="configuration_battery_optimization">Ignore battery optimizations</string>
     <string name="configuration_battery_optimization_done">Battery optimizations are disabled</string>
 
@@ -75,4 +76,3 @@
     <string name="keep_alive_notification_title">Anemo storage is active</string>
     <string name="keep_alive_notification_text">Anemo keeps its private storage in memory while it is in use.</string>
 </resources>
-
