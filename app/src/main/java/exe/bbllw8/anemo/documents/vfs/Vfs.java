@@ -180,6 +180,16 @@ public final class Vfs {
         }
     }
 
+    public synchronized void deleteAllChildren() {
+        final VfsNode root = nodes.get(ROOT_ID);
+        if (root == null) {
+            return;
+        }
+        for (final String childId : new ArrayList<>(root.childIds.values())) {
+            delete(childId);
+        }
+    }
+
     public synchronized boolean rename(String id, String newName) {
         if (ROOT_ID.equals(id)) {
             return false;

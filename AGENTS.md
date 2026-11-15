@@ -42,7 +42,11 @@ The keep-alive foreground service must declare both dataSync and specialUse fore
 
 The keep-alive service is only started when POST_NOTIFICATIONS is granted on API 33+. Without a visible notification the service would be killed or would display a misleading system notification.
 
+The keep-alive notification exposes two actions: Nuke and Nuke & Exit. Both clear every file from the VFS and refresh the DocumentsUI roots; Nuke & Exit additionally stops the service. The actions must be standard Notification.Action entries so they are revealed only when the notification is expanded; do not replace them with direct content intents, custom RemoteViews, or notification styles that pin actions on the collapsed view. Action icons must be monochrome framework drawables (android.R.drawable); do not introduce new icon resources for them.
+
 The notification small icon must be a monochrome drawable. Do not use the adaptive launcher icon.
+
+Thumbnail support is opt-in and defaults to off. When enabled, thumbnail data is emitted only for files whose extension appears in the configured comma-separated allowlist (an empty allowlist means any extension that MimeTypeMap maps to image/*) and whose size does not exceed the configured maximum (32 MiB by default). Thumbnail data is the file bytes as-is; do not decode, rescale, or transcode images.
 
 Prefer framework APIs over third-party libraries. Do not introduce new dependencies.
 

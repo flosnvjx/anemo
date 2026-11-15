@@ -66,6 +66,14 @@
 
     <string name="configuration_storage_section">Storage</string>
     <string name="configuration_thumbnails">Show image thumbnails</string>
+    <string name="configuration_thumbnail_extensions">Thumbnail file types</string>
+    <string name="configuration_thumbnail_extensions_value">Types: %1$s</string>
+    <string name="configuration_thumbnail_extensions_all_images">All system-supported image types</string>
+    <string name="configuration_thumbnail_extensions_hint">Comma-separated extensions, e.g. jpg,png</string>
+    <string name="configuration_thumbnail_extensions_reset">Reset to default</string>
+    <string name="configuration_thumbnail_max_size">Thumbnail max file size</string>
+    <string name="configuration_thumbnail_max_size_value">Max size: %1$s</string>
+
     <string name="configuration_storage_quota">Storage quota</string>
     <string name="configuration_storage_quota_value">Storage quota: %1$s</string>
     <string name="configuration_storage_quota_unlimited">Unlimited</string>
@@ -87,4 +95,6 @@
     <string name="keep_alive_channel_description">Keeps the in-memory Anemo storage available while files are in use.</string>
     <string name="keep_alive_notification_title">Anemo storage is active</string>
     <string name="keep_alive_notification_text">Anemo keeps its private storage in memory while it is in use.</string>
+    <string name="keep_alive_action_nuke">Nuke</string>
+    <string name="keep_alive_action_nuke_exit">Nuke &amp; Exit</string>
 </resources>

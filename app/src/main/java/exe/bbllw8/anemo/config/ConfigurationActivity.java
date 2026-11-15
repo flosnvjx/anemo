@@ -41,6 +41,8 @@ public final class ConfigurationActivity extends Activity {
     private TextView changeLockView;
     private TextView batteryOptimizationView;
     private TextView storageQuotaView;
+    private TextView thumbnailExtensionsView;
+    private TextView thumbnailMaxSizeView;
     private Switch thumbnailsSwitch;
     private Switch biometricSwitch;
 
@@ -86,8 +88,16 @@ public final class ConfigurationActivity extends Activity {
 
         thumbnailsSwitch = findViewById(R.id.configuration_thumbnails);
         thumbnailsSwitch.setChecked(storageSettings.areThumbnailsEnabled());
-        thumbnailsSwitch.setOnCheckedChangeListener(
-                (v, isChecked) -> storageSettings.setThumbnailsEnabled(isChecked));
+        thumbnailsSwitch.setOnCheckedChangeListener((v, isChecked) -> {
+            storageSettings.setThumbnailsEnabled(isChecked);
+            updateThumbnailSubOptions();
+        });
+
+        thumbnailExtensionsView = findViewById(R.id.configuration_thumbnail_extensions);
+        thumbnailExtensionsView.setOnClickListener($ -> showThumbnailExtensionsDialog());
+
+        thumbnailMaxSizeView = findViewById(R.id.configuration_thumbnail_max_size);
+        thumbnailMaxSizeView.setOnClickListener($ -> showThumbnailMaxSizeDialog());
 
         storageQuotaView = findViewById(R.id.configuration_storage_quota);
         storageQuotaView.setOnClickListener($ -> showQuotaDialog());
@@ -103,6 +113,7 @@ public final class ConfigurationActivity extends Activity {
         setupPasswordViews();
         updateBatteryOptimizationView();
         updateQuotaView();
+        updateThumbnailSubOptions();
     }
 
     @Override
@@ -154,6 +165,32 @@ public final class ConfigurationActivity extends Activity {
                     getString(R.string.configuration_storage_quota_unit));
         }
         storageQuotaView.setText(getString(R.string.configuration_storage_quota_value, value));
+    }
+
+    private void updateThumbnailSubOptions() {
+        final int visibility = thumbnailsSwitch.isChecked() ? View.VISIBLE : View.GONE;
+        thumbnailExtensionsView.setVisibility(visibility);
+        thumbnailMaxSizeView.setVisibility(visibility);
+        updateThumbnailExtensionsView();
+        updateThumbnailMaxSizeView();
+    }
+
+    private void updateThumbnailExtensionsView() {
+        final String extensions = storageSettings.getThumbnailExtensions();
+        final String value = extensions.isEmpty()
+                ? getString(R.string.configuration_thumbnail_extensions_all_images)
+                : extensions;
+        thumbnailExtensionsView.setText(
+                getString(R.string.configuration_thumbnail_extensions_value, value));
+    }
+
+    private void updateThumbnailMaxSizeView() {
+        final long bytes = storageSettings.getThumbnailMaxSizeBytes();
+        final String value = String.format(Locale.getDefault(), "%d %s",
+                Math.max(1L, bytes / (1024L * 1024L)),
+                getString(R.string.configuration_storage_quota_unit));
+        thumbnailMaxSizeView.setText(
+                getString(R.string.configuration_thumbnail_max_size_value, value));
     }
 
     private void showQuotaDialog() {
@@ -229,6 +266,49 @@ public final class ConfigurationActivity extends Activity {
                 Toast.LENGTH_LONG).show();
     }
 
+    private void showThumbnailExtensionsDialog() {
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT);
+        final String current = storageSettings.getThumbnailExtensions();
+        if (!current.isEmpty()) {
+            input.setText(current);
+        }
+        input.setHint(R.string.configuration_thumbnail_extensions_hint);
+        new AlertDialog.Builder(this, R.style.DialogTheme)
+                .setTitle(R.string.configuration_thumbnail_extensions)
+                .setView(input)
+                .setPositiveButton(android.R.string.ok, (d, which) -> {
+                    storageSettings.setThumbnailExtensions(
+                            input.getText().toString().trim());
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .setNeutralButton(R.string.configuration_thumbnail_extensions_reset,
+                        (d, which) -> storageSettings.setThumbnailExtensions(""))
+                .show();
+    }
+
+    private void showThumbnailMaxSizeDialog() {
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        final long current = storageSettings.getThumbnailMaxSizeBytes();
+        input.setText(String.valueOf(Math.max(1L, current / (1024L * 1024L))));
+        new AlertDialog.Builder(this, R.style.DialogTheme)
+                .setTitle(R.string.configuration_thumbnail_max_size)
+                .setView(input)
+                .setPositiveButton(android.R.string.ok, (d, which) -> {
+                    try {
+                        final long mib = Long.parseLong(input.getText().toString().trim());
+                        if (mib > 0) {
+                            storageSettings.setThumbnailMaxSizeMiB(mib);
+                        }
+                    } catch (NumberFormatException ignored) {
+                        // keep current value
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     private final Consumer<Boolean> onLockChanged = isLocked -> {
         passwordSetView.setEnabled(!isLocked);
         biometricSwitch.setEnabled(!isLocked);
@@ -242,6 +322,7 @@ public final class ConfigurationActivity extends Activity {
             thumbnailsSwitch.setChecked(storageSettings.areThumbnailsEnabled());
         }
         updateQuotaView();
+        updateThumbnailSubOptions();
     };
 
     private void enableEdgeToEdge() {

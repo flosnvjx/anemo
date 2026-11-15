@@ -4,6 +4,7 @@
  */
 package exe.bbllw8.anemo.documents.provider;
 
+import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.graphics.Point;
@@ -18,6 +19,7 @@ import android.provider.DocumentsContract;
 import android.provider.DocumentsContract.Document;
 import android.provider.DocumentsProvider;
 import android.util.Log;
+import android.webkit.MimeTypeMap;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -279,19 +281,18 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
     }
 
     @Override
-    public android.content.res.AssetFileDescriptor openDocumentThumbnail(
+    public AssetFileDescriptor openDocumentThumbnail(
             String documentId, Point sizeHint, CancellationSignal signal)
             throws FileNotFoundException {
-        if (!getSettings().areThumbnailsEnabled()) {
-            throw new FileNotFoundException("Thumbnails are disabled");
-        }
         final VfsNode node = getVfs().get(documentId);
         if (node == null || node.isDirectory) {
             throw new FileNotFoundException("No file " + documentId);
         }
+        if (!isThumbnailAllowed(node)) {
+            throw new FileNotFoundException("Thumbnails not enabled for " + documentId);
+        }
         final ParcelFileDescriptor pfd = openDocument(documentId, "r", signal);
-        return new android.content.res.AssetFileDescriptor(
-                pfd, 0, android.content.res.AssetFileDescriptor.UNKNOWN_LENGTH);
+        return new AssetFileDescriptor(pfd, 0, AssetFileDescriptor.UNKNOWN_LENGTH);
     }
 
     @Override
@@ -339,7 +340,7 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
                 flags |= Document.FLAG_DIR_SUPPORTS_CREATE;
             } else {
                 flags |= Document.FLAG_SUPPORTS_WRITE;
-                if (getSettings().areThumbnailsEnabled() && mimeType.startsWith("image/")) {
+                if (isThumbnailAllowed(node)) {
                     flags |= Document.FLAG_SUPPORTS_THUMBNAIL;
                 }
             }
@@ -365,6 +366,34 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
         }
 
         return row;
+    }
+
+    private boolean isThumbnailAllowed(VfsNode node) {
+        if (node.isDirectory) {
+            return false;
+        }
+        if (!getSettings().areThumbnailsEnabled()) {
+            return false;
+        }
+        if (node.size > getSettings().getThumbnailMaxSizeBytes()) {
+            return false;
+        }
+        final int dot = node.name.lastIndexOf('.');
+        if (dot < 0 || dot == node.name.length() - 1) {
+            return false;
+        }
+        final String ext = node.name.substring(dot + 1).toLowerCase(Locale.ROOT);
+        final String configured = getSettings().getThumbnailExtensions();
+        if (configured.isEmpty()) {
+            final String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext);
+            return mime != null && mime.startsWith("image/");
+        }
+        for (final String item : configured.split(",")) {
+            if (item.trim().equalsIgnoreCase(ext)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String[] resolveProjection(String[] projection) {

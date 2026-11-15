@@ -43,11 +43,17 @@ public final class AnemoDocumentProvider extends VfsDocumentProvider {
             Root.COLUMN_CAPACITY_BYTES,
     };
 
+    private static volatile Vfs sVfs;
+
     private final Vfs vfs = new Vfs();
     private LockStore lockStore;
     private StorageSettings storageSettings;
 
     private boolean showInfo = true;
+
+    public static Vfs getVfsInstance() {
+        return sVfs;
+    }
 
     @Override
     public boolean onCreate() {
@@ -64,6 +70,7 @@ public final class AnemoDocumentProvider extends VfsDocumentProvider {
         storageSettings = StorageSettings.getInstance(context);
         storageSettings.addListener(onSettingsChanged);
         vfs.setMaxBytes(storageSettings.getQuotaBytes());
+        sVfs = vfs;
         return true;
     }
 
@@ -71,6 +78,7 @@ public final class AnemoDocumentProvider extends VfsDocumentProvider {
     public void shutdown() {
         lockStore.removeListener(onLockChanged);
         storageSettings.removeListener(onSettingsChanged);
+        sVfs = null;
         super.shutdown();
     }
 
@@ -252,4 +260,3 @@ public final class AnemoDocumentProvider extends VfsDocumentProvider {
         }
     }
 }
-

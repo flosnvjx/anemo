@@ -17,9 +17,13 @@ import java.util.List;
 public final class StorageSettings implements SharedPreferences.OnSharedPreferenceChangeListener {
     private static final String PREFS = "storage_settings";
     private static final String KEY_THUMBNAILS = "thumbnails_enabled";
+    private static final String KEY_THUMBNAIL_EXTENSIONS = "thumbnail_extensions";
+    private static final String KEY_THUMBNAIL_MAX_SIZE = "thumbnail_max_size_bytes";
     private static final String KEY_QUOTA_BYTES = "quota_bytes";
     private static final String KEY_BATTERY_PROMPT_SHOWN = "battery_prompt_shown";
     private static final String KEY_NOTIFICATION_PROMPT_SHOWN = "notification_prompt_shown";
+
+    private static final long DEFAULT_THUMBNAIL_MAX_SIZE_BYTES = 32L * 1024L * 1024L;
 
     public static final long UNLIMITED = -1L;
 
@@ -78,11 +82,33 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
     }
 
     public boolean areThumbnailsEnabled() {
-        return preferences.getBoolean(KEY_THUMBNAILS, true);
+        return preferences.getBoolean(KEY_THUMBNAILS, false);
     }
 
     public void setThumbnailsEnabled(boolean enabled) {
         preferences.edit().putBoolean(KEY_THUMBNAILS, enabled).apply();
+    }
+
+    public String getThumbnailExtensions() {
+        return preferences.getString(KEY_THUMBNAIL_EXTENSIONS, "");
+    }
+
+    public void setThumbnailExtensions(String extensions) {
+        preferences.edit()
+                .putString(KEY_THUMBNAIL_EXTENSIONS, extensions == null ? "" : extensions)
+                .apply();
+    }
+
+    public long getThumbnailMaxSizeBytes() {
+        return preferences.getLong(KEY_THUMBNAIL_MAX_SIZE, DEFAULT_THUMBNAIL_MAX_SIZE_BYTES);
+    }
+
+    public void setThumbnailMaxSizeMiB(long mib) {
+        if (mib > 0) {
+            preferences.edit()
+                    .putLong(KEY_THUMBNAIL_MAX_SIZE, mib * 1024L * 1024L)
+                    .apply();
+        }
     }
 
     public long getQuotaBytes() {

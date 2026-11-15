@@ -85,6 +85,34 @@
             android:textSize="16sp" />
 
         <TextView
+            android:id="@+id/configuration_thumbnail_extensions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:foreground="?android:attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:minHeight="56dp"
+            android:paddingHorizontal="16dp"
+            android:paddingStart="32dp"
+            android:textColor="?android:textColorPrimary"
+            android:textSize="16sp"
+            android:visibility="gone"
+            tools:text="@string/configuration_thumbnail_extensions" />
+
+        <TextView
+            android:id="@+id/configuration_thumbnail_max_size"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:foreground="?android:attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:minHeight="56dp"
+            android:paddingHorizontal="16dp"
+            android:paddingStart="32dp"
+            android:textColor="?android:textColorPrimary"
+            android:textSize="16sp"
+            android:visibility="gone"
+            tools:text="@string/configuration_thumbnail_max_size" />
+
+        <TextView
             android:id="@+id/configuration_storage_quota"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -117,4 +145,3 @@
             tools:text="@string/configuration_battery_optimization" />
     </LinearLayout>
 </ScrollView>
-
