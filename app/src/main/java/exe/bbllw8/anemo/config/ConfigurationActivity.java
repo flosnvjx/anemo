@@ -5,6 +5,7 @@
 package exe.bbllw8.anemo.config;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Insets;
@@ -17,6 +18,7 @@ import android.view.WindowInsets;
 import android.widget.EditText;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 
@@ -158,7 +160,7 @@ public final class ConfigurationActivity extends Activity {
         final String[] options = {
                 getString(R.string.configuration_storage_quota_unlimited),
                 getString(R.string.configuration_storage_quota_set_size),
-                getString(R.string.configuration_storage_quota_reset_default),
+                getString(R.string.configuration_storage_quota_reset_default_memory),
         };
         new AlertDialog.Builder(this, R.style.DialogTheme)
                 .setTitle(R.string.configuration_storage_quota)
@@ -185,17 +187,46 @@ public final class ConfigurationActivity extends Activity {
                 .setTitle(R.string.configuration_storage_quota_set_size)
                 .setView(input)
                 .setPositiveButton(android.R.string.ok, (d, which) -> {
+                    final long mib;
                     try {
-                        final long mib = Long.parseLong(input.getText().toString().trim());
-                        if (mib > 0) {
-                            storageSettings.setQuotaMiB(mib);
-                        }
+                        mib = Long.parseLong(input.getText().toString().trim());
                     } catch (NumberFormatException ignored) {
-                        // keep current value
+                        return;
                     }
+                    if (mib <= 0) {
+                        return;
+                    }
+                    final long requestedBytes;
+                    try {
+                        requestedBytes = Math.multiplyExact(
+                                Math.multiplyExact(mib, 1024L), 1024L);
+                    } catch (ArithmeticException overflow) {
+                        showQuotaTooLarge();
+                        return;
+                    }
+                    if (exceedsAvailableMemory(requestedBytes)) {
+                        showQuotaTooLarge();
+                        return;
+                    }
+                    storageSettings.setQuotaMiB(mib);
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    private boolean exceedsAvailableMemory(long requestedBytes) {
+        final ActivityManager am = getSystemService(ActivityManager.class);
+        if (am == null) {
+            return false;
+        }
+        final ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+        am.getMemoryInfo(mi);
+        return mi.availMem > 0 && requestedBytes > mi.availMem * 95L / 100L;
+    }
+
+    private void showQuotaTooLarge() {
+        Toast.makeText(this, R.string.configuration_storage_quota_too_large,
+                Toast.LENGTH_LONG).show();
     }
 
     private final Consumer<Boolean> onLockChanged = isLocked -> {
@@ -231,4 +262,3 @@ public final class ConfigurationActivity extends Activity {
         });
     }
 }
-

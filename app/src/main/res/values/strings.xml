@@ -71,6 +71,8 @@
     <string name="configuration_storage_quota_unlimited">Unlimited</string>
     <string name="configuration_storage_quota_set_size">Set size (MiB)</string>
     <string name="configuration_storage_quota_reset_default">Reset to default (50%% of app heap)</string>
+    <string name="configuration_storage_quota_reset_default_memory" formatted="false">Reset to default (50% of available system memory)</string>
+    <string name="configuration_storage_quota_too_large" formatted="false">Quota cannot exceed 95% of available system memory</string>
     <string name="configuration_storage_quota_unit">MiB</string>
 
     <string name="configuration_battery_optimization">Ignore battery optimizations</string>

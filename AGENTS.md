@@ -30,7 +30,7 @@ resources live under app/src/main/res.
 
 File contents live entirely in memory. Use StorageManager.openProxyFileDescriptor plus the in-memory VFS. The VFS stores file bytes in native (malloc'd) memory through the JNI bridge in app/src/main/cpp; do not add memfd, tmpfs, cacheDir, or any disk fallback.
 
-The application uses android:largeHeap="true". The storage quota defaults to Runtime.getRuntime().maxMemory(). Because file contents are held in native memory and not on the Java heap, a single file may exceed the heap limit; do not attempt to fake this with disk.
+The application uses android:largeHeap="true". The storage quota defaults, at StorageSettings initialization, to half of the system's available memory as reported by ActivityManager.MemoryInfo.availMem, falling back to Runtime.getRuntime().maxMemory() when that value is unavailable. Because file contents are held in native memory and not on the Java heap, a single file may exceed the heap limit; do not attempt to fake this with disk. The quota settings UI must reject a numeric quota above 95 percent of currently available system memory; the Unlimited option is exempt so a user who chooses it accepts the risk of the process being killed under memory pressure.
 
 The DocumentsProvider must not be ejectable or unmountable. Do not set Root.FLAG_SUPPORTS_EJECT and do not implement ejectRoot.
 

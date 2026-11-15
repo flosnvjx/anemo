@@ -4,6 +4,7 @@
  */
 package exe.bbllw8.anemo.documents.settings;
 
+import android.app.ActivityManager;
 import android.content.Context;
 import android.content.SharedPreferences;
 
@@ -23,6 +24,7 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
     public static final long UNLIMITED = -1L;
 
     private final SharedPreferences preferences;
+    private final long defaultQuotaBytes;
     private final List<Runnable> listeners = new ArrayList<>();
 
     private static volatile StorageSettings instance;
@@ -41,9 +43,10 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
     private StorageSettings(Context context) {
         preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         preferences.registerOnSharedPreferenceChangeListener(this);
+        defaultQuotaBytes = computeDefaultQuotaBytes(context);
         if (!preferences.contains(KEY_QUOTA_BYTES)) {
             preferences.edit()
-                    .putLong(KEY_QUOTA_BYTES, defaultQuotaBytes())
+                    .putLong(KEY_QUOTA_BYTES, defaultQuotaBytes)
                     .apply();
         }
     }
@@ -81,7 +84,7 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
     }
 
     public long getQuotaBytes() {
-        return preferences.getLong(KEY_QUOTA_BYTES, defaultQuotaBytes());
+        return preferences.getLong(KEY_QUOTA_BYTES, defaultQuotaBytes);
     }
 
     public boolean isQuotaUnlimited() {
@@ -100,7 +103,7 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
     }
 
     public void resetQuotaToDefault() {
-        preferences.edit().putLong(KEY_QUOTA_BYTES, defaultQuotaBytes()).apply();
+        preferences.edit().putLong(KEY_QUOTA_BYTES, defaultQuotaBytes).apply();
     }
 
     public boolean wasBatteryPromptShown() {
@@ -119,7 +122,16 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
         preferences.edit().putBoolean(KEY_NOTIFICATION_PROMPT_SHOWN, true).apply();
     }
 
-    private static long defaultQuotaBytes() {
+    private static long computeDefaultQuotaBytes(Context context) {
+        final ActivityManager am = context.getSystemService(ActivityManager.class);
+        if (am != null) {
+            final ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+            am.getMemoryInfo(mi);
+            final long half = mi.availMem / 2L;
+            if (half > 0) {
+                return half;
+            }
+        }
         final long max = Runtime.getRuntime().maxMemory();
         return max > 0 ? max : 1L;
     }
