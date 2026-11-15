@@ -23,6 +23,8 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import java.util.Objects;
+
 import exe.bbllw8.anemo.R;
 import exe.bbllw8.anemo.config.ConfigurationActivity;
 import exe.bbllw8.anemo.documents.provider.AnemoDocumentProvider;
@@ -230,7 +232,7 @@ public final class KeepAliveService extends Service {
 
     private void pushNotificationIfChanged() {
         final String text = buildContentText();
-        if (text.equals(lastContentText)) {
+        if (Objects.equals(text, lastContentText)) {
             return;
         }
         lastContentText = text;
@@ -260,8 +262,7 @@ public final class KeepAliveService extends Service {
         final Notification.Builder builder = Build.VERSION.SDK_INT >= 26
                 ? new Notification.Builder(this, CHANNEL_ID)
                 : new Notification.Builder(this);
-        return builder.setContentTitle(getString(R.string.keep_alive_notification_title))
-                .setContentText(contentText)
+        builder.setContentTitle(getString(R.string.keep_alive_notification_title))
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentIntent(contentPi)
                 .addAction(new Notification.Action.Builder(
@@ -276,8 +277,11 @@ public final class KeepAliveService extends Service {
                 .addAction(new Notification.Action.Builder(
                         Icon.createWithResource(this, android.R.drawable.ic_menu_manage),
                         getString(R.string.keep_alive_action_configure),
-                        configurePi).build())
-                .setOnlyAlertOnce(true)
+                        configurePi).build());
+        if (contentText != null) {
+            builder.setContentText(contentText);
+        }
+        return builder.setOnlyAlertOnce(true)
                 .setOngoing(true)
                 .setShowWhen(false)
                 .build();
@@ -288,7 +292,7 @@ public final class KeepAliveService extends Service {
             return getString(R.string.keep_alive_io_meter,
                     formatRate(currentReadRate), formatRate(currentWriteRate));
         }
-        return getString(R.string.keep_alive_notification_text);
+        return null;
     }
 
     private static String formatRate(long bytesPerSecond) {

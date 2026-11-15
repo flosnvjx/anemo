@@ -109,7 +109,6 @@
     <string name="keep_alive_channel_name">Storage keep-alive</string>
     <string name="keep_alive_channel_description">Keeps the in-memory Anemo storage available while files are in use.</string>
     <string name="keep_alive_notification_title">Anemo storage is active</string>
-    <string name="keep_alive_notification_text">Anemo keeps its private storage in memory while it is in use.</string>
     <string name="keep_alive_io_meter">↑ %1$s  ↓ %2$s</string>
     <string name="keep_alive_action_nuke">Nuke</string>
     <string name="keep_alive_action_nuke_exit">Nuke &amp; Exit</string>
