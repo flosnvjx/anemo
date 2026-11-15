@@ -17,13 +17,11 @@ import android.content.pm.ServiceInfo;
 import android.graphics.drawable.Icon;
 import android.os.Build;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
-import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
-
-import java.util.Locale;
 
 import exe.bbllw8.anemo.R;
 import exe.bbllw8.anemo.documents.provider.AnemoDocumentProvider;
@@ -35,19 +33,26 @@ public final class KeepAliveService extends Service {
     private static final String TAG = "KeepAliveService";
     private static final String CHANNEL_ID = "anemo_keep_alive";
     private static final int NOTIFICATION_ID = 0x10;
+    private static final String METER_THREAD_NAME = "anemo-io-meter";
 
     private static final String ACTION_NUKE = "exe.bbllw8.anemo.action.NUKE";
     private static final String ACTION_NUKE_EXIT = "exe.bbllw8.anemo.action.NUKE_EXIT";
 
-    private final Handler handler = new Handler(Looper.getMainLooper());
-
     private StorageSettings storageSettings;
-    private boolean lastMeterEnabled;
-    private long lastReadBytes;
-    private long lastWriteBytes;
-    private long lastUpdateMillis;
-    private long currentReadRate;
-    private long currentWriteRate;
+    private PendingIntent contentPi;
+    private PendingIntent nukePi;
+    private PendingIntent nukeExitPi;
+
+    private HandlerThread meterThread;
+    private Handler meterHandler;
+
+    private volatile boolean lastMeterEnabled;
+    private volatile long lastReadBytes;
+    private volatile long lastWriteBytes;
+    private volatile long lastUpdateMillis;
+    private volatile long currentReadRate;
+    private volatile long currentWriteRate;
+    private volatile String lastContentText;
 
     private final Runnable meterUpdate = () -> {
         updateMeter();
@@ -86,6 +91,11 @@ public final class KeepAliveService extends Service {
         lastMeterEnabled = storageSettings.isIoMeterEnabled();
         storageSettings.addListener(settingsListener);
         createNotificationChannel();
+        buildPendingIntents();
+
+        meterThread = new HandlerThread(METER_THREAD_NAME);
+        meterThread.start();
+        meterHandler = new Handler(meterThread.getLooper());
         resetMeterBaseline();
     }
 
@@ -94,8 +104,14 @@ public final class KeepAliveService extends Service {
         if (storageSettings != null) {
             storageSettings.removeListener(settingsListener);
         }
-        handler.removeCallbacks(meterUpdate);
-        handler.removeCallbacks(applySettingsChange);
+        if (meterHandler != null) {
+            meterHandler.removeCallbacksAndMessages(null);
+        }
+        if (meterThread != null) {
+            meterThread.quitSafely();
+            meterThread = null;
+            meterHandler = null;
+        }
         super.onDestroy();
     }
 
@@ -115,6 +131,8 @@ public final class KeepAliveService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
+
+        lastContentText = buildContentText();
 
         final String action = intent != null ? intent.getAction() : null;
         if (ACTION_NUKE_EXIT.equals(action)) {
@@ -148,9 +166,23 @@ public final class KeepAliveService extends Service {
         }
     }
 
+    private void buildPendingIntents() {
+        contentPi = PendingIntent.getActivity(this, 0,
+                new Intent(this, LauncherActivity.class), PendingIntent.FLAG_IMMUTABLE);
+        nukePi = PendingIntent.getService(this, 1,
+                new Intent(this, KeepAliveService.class).setAction(ACTION_NUKE),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        nukeExitPi = PendingIntent.getService(this, 2,
+                new Intent(this, KeepAliveService.class).setAction(ACTION_NUKE_EXIT),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
     private void onSettingsChanged() {
-        handler.removeCallbacks(applySettingsChange);
-        handler.post(applySettingsChange);
+        if (meterHandler == null) {
+            return;
+        }
+        meterHandler.removeCallbacks(applySettingsChange);
+        meterHandler.post(applySettingsChange);
     }
 
     private void applySettingsChange() {
@@ -161,18 +193,22 @@ public final class KeepAliveService extends Service {
         if (enabled != lastMeterEnabled) {
             lastMeterEnabled = enabled;
             resetMeterBaseline();
-            notifyNotification();
+            lastContentText = null;
+            pushNotificationIfChanged();
         }
         scheduleMeterUpdates();
     }
 
     private void scheduleMeterUpdates() {
-        handler.removeCallbacks(meterUpdate);
+        if (meterHandler == null) {
+            return;
+        }
+        meterHandler.removeCallbacks(meterUpdate);
         if (storageSettings == null || !storageSettings.isIoMeterEnabled()) {
             return;
         }
         final long intervalMs = Math.max(1, storageSettings.getIoMeterIntervalSeconds()) * 1000L;
-        handler.postDelayed(meterUpdate, intervalMs);
+        meterHandler.postDelayed(meterUpdate, intervalMs);
     }
 
     private void updateMeter() {
@@ -185,13 +221,22 @@ public final class KeepAliveService extends Service {
         lastReadBytes = readTotal;
         lastWriteBytes = writeTotal;
         lastUpdateMillis = now;
-        notifyNotification();
+        pushNotificationIfChanged();
     }
 
-    private void notifyNotification() {
+    private void pushNotificationIfChanged() {
+        final String text = buildContentText();
+        if (text.equals(lastContentText)) {
+            return;
+        }
+        lastContentText = text;
+        notifyNotification(text);
+    }
+
+    private void notifyNotification(String contentText) {
         final NotificationManager nm = getSystemService(NotificationManager.class);
         if (nm != null) {
-            nm.notify(NOTIFICATION_ID, buildNotification());
+            nm.notify(NOTIFICATION_ID, buildNotification(contentText));
         }
     }
 
@@ -204,24 +249,10 @@ public final class KeepAliveService extends Service {
     }
 
     private Notification buildNotification() {
-        final PendingIntent contentPi = PendingIntent.getActivity(this, 0,
-                new Intent(this, LauncherActivity.class), PendingIntent.FLAG_IMMUTABLE);
-        final PendingIntent nukePi = PendingIntent.getService(this, 1,
-                new Intent(this, KeepAliveService.class).setAction(ACTION_NUKE),
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-        final PendingIntent nukeExitPi = PendingIntent.getService(this, 2,
-                new Intent(this, KeepAliveService.class).setAction(ACTION_NUKE_EXIT),
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        return buildNotification(buildContentText());
+    }
 
-        final String contentText;
-        if (storageSettings != null && storageSettings.isIoMeterEnabled()) {
-            contentText = getString(R.string.keep_alive_notification_text) + " · "
-                    + getString(R.string.keep_alive_io_meter,
-                            formatRate(currentReadRate), formatRate(currentWriteRate));
-        } else {
-            contentText = getString(R.string.keep_alive_notification_text);
-        }
-
+    private Notification buildNotification(String contentText) {
         final Notification.Builder builder = Build.VERSION.SDK_INT >= 26
                 ? new Notification.Builder(this, CHANNEL_ID)
                 : new Notification.Builder(this);
@@ -244,6 +275,15 @@ public final class KeepAliveService extends Service {
                 .build();
     }
 
+    private String buildContentText() {
+        if (storageSettings != null && storageSettings.isIoMeterEnabled()) {
+            return getString(R.string.keep_alive_notification_text) + " · "
+                    + getString(R.string.keep_alive_io_meter,
+                            formatRate(currentReadRate), formatRate(currentWriteRate));
+        }
+        return getString(R.string.keep_alive_notification_text);
+    }
+
     private static String formatRate(long bytesPerSecond) {
         if (bytesPerSecond < 1024L) {
             return bytesPerSecond + " B/s";
@@ -255,7 +295,13 @@ public final class KeepAliveService extends Service {
             value /= 1024.0;
             unit++;
         }
-        return String.format(Locale.getDefault(), "%.1f %s/s", value, units[unit]);
+        return formatOneDecimal(value) + " " + units[unit] + "/s";
+    }
+
+    private static String formatOneDecimal(double value) {
+        final long tenths = Math.round(value * 10.0);
+        final long whole = tenths / 10L;
+        final int frac = (int) (tenths % 10L);
+        return whole + "." + frac;
     }
 }
-
