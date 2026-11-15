@@ -7,7 +7,6 @@ package exe.bbllw8.anemo.documents.provider;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.graphics.Point;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.Handler;
@@ -158,18 +157,10 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
     @Override
     public String createDocument(String parentDocumentId, String mimeType, String displayName) {
         final Vfs vfs = getVfs();
-        final VfsNode parent = vfs.get(parentDocumentId);
-        if (parent == null || !parent.isDirectory) {
-            throw new IllegalStateException("Invalid parent " + parentDocumentId);
-        }
         final String safeName = PathUtils.buildValidFileName(displayName);
-        final String uniqueName = vfs.uniqueName(parent, safeName);
-        if (uniqueName == null) {
-            throw new IllegalStateException("Could not allocate a unique name");
-        }
         final VfsNode created = Document.MIME_TYPE_DIR.equals(mimeType)
-                ? vfs.createDirectory(parentDocumentId, uniqueName)
-                : vfs.createFile(parentDocumentId, uniqueName, new byte[0]);
+                ? vfs.createDirectoryUnique(parentDocumentId, safeName)
+                : vfs.createFileUnique(parentDocumentId, safeName, new byte[0]);
         if (created == null) {
             throw new IllegalStateException("Could not create document");
         }
@@ -191,10 +182,19 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
     @Override
     public String renameDocument(String documentId, String displayName) {
         final String safeName = PathUtils.buildValidFileName(displayName);
+        final VfsNode node = getVfs().get(documentId);
+        if (node == null) {
+            throw new IllegalStateException("No document " + documentId);
+        }
+        if (node.name.equals(safeName)) {
+            // ID is stable; return null when unchanged.
+            return null;
+        }
         if (!getVfs().rename(documentId, safeName)) {
             throw new IllegalStateException("Could not rename " + documentId);
         }
-        return documentId;
+        // IDs are stable across renames.
+        return null;
     }
 
     @Override
@@ -227,18 +227,24 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
     @Override
     public DocumentsContract.Path findDocumentPath(String parentDocumentId,
                                                    String childDocumentId) {
+        final Vfs vfs = getVfs();
         final List<String> segments = new ArrayList<>();
-        VfsNode current = getVfs().get(childDocumentId);
+        VfsNode current = vfs.get(childDocumentId);
         while (current != null && !current.id.equals(parentDocumentId)) {
             segments.add(current.id);
-            current = current.parentId == null ? null : getVfs().get(current.parentId);
+            current = current.parentId == null ? null : vfs.get(current.parentId);
         }
         Collections.reverse(segments);
-        return new DocumentsContract.Path(parentDocumentId, segments);
+        final String rootId = parentDocumentId != null ? parentDocumentId : Vfs.ROOT_ID;
+        return new DocumentsContract.Path(rootId, segments);
     }
 
     @Override
     public boolean isChildDocument(String parentDocumentId, String documentId) {
+        if (parentDocumentId == null || documentId == null
+                || parentDocumentId.equals(documentId)) {
+            return false;
+        }
         final VfsNode parent = getVfs().get(parentDocumentId);
         final VfsNode child = getVfs().get(documentId);
         return parent != null && child != null && getVfs().isAncestor(child, parent);
@@ -274,8 +280,7 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
         if (node == null || node.isDirectory) {
             throw new FileNotFoundException("No file " + documentId);
         }
-        final ParcelFileDescriptor pfd = openDocument(documentId,
-                ParcelFileDescriptor.MODE_READ_ONLY == 0 ? "r" : "r", signal);
+        final ParcelFileDescriptor pfd = openDocument(documentId, "r", signal);
         return new android.content.res.AssetFileDescriptor(
                 pfd, 0, android.content.res.AssetFileDescriptor.UNKNOWN_LENGTH);
     }
@@ -368,4 +373,3 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
         return -1;
     }
 }
-

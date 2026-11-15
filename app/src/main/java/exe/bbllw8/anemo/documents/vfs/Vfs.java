@@ -5,6 +5,7 @@
 package exe.bbllw8.anemo.documents.vfs;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,25 @@ public final class Vfs {
         return createNode(parentId, name, true, null);
     }
 
+    public synchronized VfsNode createFileUnique(String parentId, String baseName,
+                                                 byte[] initialData) {
+        final VfsNode parent = nodes.get(parentId);
+        if (parent == null || !parent.isDirectory) {
+            return null;
+        }
+        final String name = uniqueName(parent, baseName);
+        return name == null ? null : createNode(parentId, name, false, initialData);
+    }
+
+    public synchronized VfsNode createDirectoryUnique(String parentId, String baseName) {
+        final VfsNode parent = nodes.get(parentId);
+        if (parent == null || !parent.isDirectory) {
+            return null;
+        }
+        final String name = uniqueName(parent, baseName);
+        return name == null ? null : createNode(parentId, name, true, null);
+    }
+
     private VfsNode createNode(String parentId, String name, boolean isDirectory, byte[] data) {
         final VfsNode parent = nodes.get(parentId);
         if (parent == null || !parent.isDirectory) {
@@ -49,7 +69,8 @@ public final class Vfs {
         final VfsNode node = new VfsNode("doc-" + idCounter.incrementAndGet(), parentId, name,
                 isDirectory);
         if (!isDirectory) {
-            node.data = data == null ? new byte[0] : data;
+            // Defensive copy: callers (e.g. copyRecursive) may pass a shared buffer.
+            node.data = data == null ? new byte[0] : Arrays.copyOf(data, data.length);
         }
         nodes.put(node.id, node);
         parent.childIds.put(name, node.id);
@@ -96,6 +117,10 @@ public final class Vfs {
         final VfsNode node = nodes.get(id);
         if (node == null) {
             return false;
+        }
+        if (node.name.equals(newName)) {
+            // No-op: renaming to the same name is a successful rename.
+            return true;
         }
         final VfsNode parent = nodes.get(node.parentId);
         if (parent == null || parent.childIds.containsKey(newName)) {
@@ -151,6 +176,7 @@ public final class Vfs {
     }
 
     private VfsNode copyRecursive(VfsNode source, String parentId, String name) {
+        // createNode defensively copies non-null data, so the copy is independent.
         final VfsNode copy = createNode(parentId, name, source.isDirectory, source.data);
         if (copy != null && source.isDirectory) {
             for (final String childId : source.childIds.values()) {
@@ -167,14 +193,16 @@ public final class Vfs {
         if (parent == null || !parent.isDirectory) {
             return Collections.emptyList();
         }
-        final List<VfsNode> children = new ArrayList<>(parent.childIds.size());
-        for (final String childId : parent.childIds.values()) {
-            final VfsNode child = nodes.get(childId);
-            if (child != null) {
-                children.add(child);
+        synchronized (this) {
+            final List<VfsNode> children = new ArrayList<>(parent.childIds.size());
+            for (final String childId : parent.childIds.values()) {
+                final VfsNode child = nodes.get(childId);
+                if (child != null) {
+                    children.add(child);
+                }
             }
+            return children;
         }
-        return children;
     }
 
     public String uniqueName(VfsNode parent, String name) {
