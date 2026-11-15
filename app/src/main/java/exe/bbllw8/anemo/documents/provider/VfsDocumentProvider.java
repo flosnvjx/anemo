@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import exe.bbllw8.anemo.documents.settings.StorageSettings;
+import exe.bbllw8.anemo.documents.vfs.NativeMemory;
 import exe.bbllw8.anemo.documents.vfs.Vfs;
 import exe.bbllw8.anemo.documents.vfs.VfsNode;
 
@@ -136,7 +137,7 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
             }
         }
         final long sizeOver = queryArgs.getLong(DocumentsContract.QUERY_ARG_FILE_SIZE_OVER, -1);
-        if (sizeOver != -1 && (node.isDirectory || node.data.length < sizeOver)) {
+        if (sizeOver != -1 && (node.isDirectory || node.size < sizeOver)) {
             return false;
         }
         final long modifiedAfter = queryArgs.getLong(
@@ -261,8 +262,11 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
         final int pfdMode = ParcelFileDescriptor.parseMode(mode);
         if ((pfdMode & ParcelFileDescriptor.MODE_TRUNCATE) != 0) {
             synchronized (node) {
-                getVfs().release(node.data.length);
-                node.data = new byte[0];
+                if (node.nativeHandle != 0L) {
+                    NativeMemory.nativeTruncate(node.nativeHandle, 0L);
+                }
+                getVfs().release(node.size);
+                node.size = 0L;
                 node.lastModified = System.currentTimeMillis();
             }
         }
@@ -304,7 +308,7 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
             bundle.putLong(DocumentsContract.METADATA_TREE_SIZE, totals[0]);
             bundle.putLong(DocumentsContract.METADATA_TREE_COUNT, totals[1]);
         } else {
-            bundle.putLong(DocumentsContract.METADATA_TREE_SIZE, node.data.length);
+            bundle.putLong(DocumentsContract.METADATA_TREE_SIZE, node.size);
             bundle.putLong(DocumentsContract.METADATA_TREE_COUNT, 1);
         }
         return bundle;
@@ -315,7 +319,7 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
             if (child.isDirectory) {
                 collectMetadata(child, totals);
             } else {
-                totals[0] += child.data.length;
+                totals[0] += child.size;
                 totals[1] += 1;
             }
         }
@@ -357,7 +361,7 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
         }
 
         if (indexOf(columns, Document.COLUMN_SIZE) != -1) {
-            row.add(Document.COLUMN_SIZE, node.isDirectory ? 0 : node.data.length);
+            row.add(Document.COLUMN_SIZE, node.isDirectory ? 0L : node.size);
         }
 
         return row;
@@ -376,4 +380,3 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
         return -1;
     }
 }
-

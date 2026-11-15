@@ -13,7 +13,8 @@ public final class VfsNode {
     public final Map<String, String> childIds;
     public String parentId;
     public String name;
-    public byte[] data;
+    public long nativeHandle;
+    public volatile long size;
     public long lastModified;
 
     public VfsNode(String id, String parentId, String name, boolean isDirectory) {
@@ -23,7 +24,7 @@ public final class VfsNode {
         this.isDirectory = isDirectory;
         this.childIds = new LinkedHashMap<>();
         this.lastModified = System.currentTimeMillis();
-        this.data = isDirectory ? null : new byte[0];
+        this.nativeHandle = 0L;
+        this.size = 0L;
     }
 }
-

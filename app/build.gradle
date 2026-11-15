@@ -9,12 +9,20 @@ plugins {
 android {
     namespace = rootProject.ext.namespace
     compileSdk = rootProject.ext.targetSdkVersion
+    ndkVersion = "27.2.12479018"
 
     defaultConfig {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode rootProject.ext.versionCode
         versionName rootProject.ext.versionName
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     buildFeatures {

@@ -6,7 +6,7 @@ Anemo is an Android app that provides private local storage through the Document
 
 app/src/main/java/exe/bbllw8/anemo/ contains the application code.
 
-documents/vfs/ holds the in-memory virtual filesystem. All file contents live in process memory and are never written to disk.
+documents/vfs/ holds the in-memory virtual filesystem. All file contents live in native process memory, managed by the JNI bridge in app/src/main/cpp, and are never written to disk.
 
 documents/provider/ holds the DocumentsProvider implementation and the StorageManager proxy callback.
 
@@ -28,9 +28,9 @@ resources live under app/src/main/res.
 
 ## Design constraints
 
-File contents live entirely in memory. Use StorageManager.openProxyFileDescriptor plus the in-memory VFS. Do not add memfd, tmpfs, cacheDir, or any disk fallback.
+File contents live entirely in memory. Use StorageManager.openProxyFileDescriptor plus the in-memory VFS. The VFS stores file bytes in native (malloc'd) memory through the JNI bridge in app/src/main/cpp; do not add memfd, tmpfs, cacheDir, or any disk fallback.
 
-The application uses android:largeHeap="true". The storage quota defaults to half of Runtime.getRuntime().maxMemory(). For files much larger than the heap, native memory (JNI plus direct ByteBuffer) would be required; do not attempt to fake this with disk.
+The application uses android:largeHeap="true". The storage quota defaults to Runtime.getRuntime().maxMemory(). Because file contents are held in native memory and not on the Java heap, a single file may exceed the heap limit; do not attempt to fake this with disk.
 
 The DocumentsProvider must not be ejectable or unmountable. Do not set Root.FLAG_SUPPORTS_EJECT and do not implement ejectRoot.
 
@@ -59,4 +59,6 @@ English identifiers, comments, and resource strings.
 In-memory VFS mutations must be synchronized on the Vfs instance.
 
 Proxy callback reads, writes, and truncates must be synchronized on the target node.
+
+Native buffers are owned by VfsNode instances; every nativeAlloc must be paired with a nativeFree on delete or shutdown.
 

@@ -5,7 +5,6 @@
 package exe.bbllw8.anemo.documents.vfs;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -110,7 +109,26 @@ public final class Vfs {
         final VfsNode node = new VfsNode("doc-" + idCounter.incrementAndGet(), parentId, name,
                 isDirectory);
         if (!isDirectory) {
-            node.data = data == null ? new byte[0] : Arrays.copyOf(data, data.length);
+            final long handle = NativeMemory.nativeAlloc();
+            if (handle == 0L) {
+                if (initialSize > 0) {
+                    release(initialSize);
+                }
+                return null;
+            }
+            node.nativeHandle = handle;
+            if (data != null && data.length > 0) {
+                final int written = NativeMemory.nativeWrite(handle, 0, data, 0, data.length);
+                if (written < 0) {
+                    NativeMemory.nativeFree(handle);
+                    node.nativeHandle = 0L;
+                    if (initialSize > 0) {
+                        release(initialSize);
+                    }
+                    return null;
+                }
+                node.size = data.length;
+            }
         }
         nodes.put(node.id, node);
         parent.childIds.put(name, node.id);
@@ -134,7 +152,11 @@ public final class Vfs {
         if (node.isDirectory) {
             deleteChildren(node);
         } else {
-            release(node.data.length);
+            if (node.nativeHandle != 0L) {
+                NativeMemory.nativeFree(node.nativeHandle);
+                node.nativeHandle = 0L;
+            }
+            release(node.size);
         }
         nodes.remove(id);
         return true;
@@ -147,7 +169,11 @@ public final class Vfs {
                 if (child.isDirectory) {
                     deleteChildren(child);
                 } else {
-                    release(child.data.length);
+                    if (child.nativeHandle != 0L) {
+                        NativeMemory.nativeFree(child.nativeHandle);
+                        child.nativeHandle = 0L;
+                    }
+                    release(child.size);
                 }
                 nodes.remove(childId);
             }
@@ -219,13 +245,35 @@ public final class Vfs {
     }
 
     private VfsNode copyRecursive(VfsNode source, String parentId, String name) {
-        final VfsNode copy = createNode(parentId, name, source.isDirectory, source.data);
-        if (copy != null && source.isDirectory) {
-            for (final String childId : source.childIds.values()) {
-                final VfsNode child = nodes.get(childId);
-                if (child != null) {
-                    copyRecursive(child, copy.id, child.name);
+        if (!source.isDirectory) {
+            final long size = source.size;
+            if (size > 0 && !tryReserve(size)) {
+                return null;
+            }
+            final VfsNode copy = createNode(parentId, name, false, null);
+            if (copy == null) {
+                if (size > 0) {
+                    release(size);
                 }
+                return null;
+            }
+            if (size > 0
+                    && !NativeMemory.nativeCopy(source.nativeHandle, copy.nativeHandle)) {
+                release(size);
+                delete(copy.id);
+                return null;
+            }
+            copy.size = size;
+            return copy;
+        }
+        final VfsNode copy = createNode(parentId, name, true, null);
+        if (copy == null) {
+            return null;
+        }
+        for (final String childId : source.childIds.values()) {
+            final VfsNode child = nodes.get(childId);
+            if (child != null) {
+                copyRecursive(child, copy.id, child.name);
             }
         }
         return copy;
@@ -281,4 +329,3 @@ public final class Vfs {
         return false;
     }
 }
-

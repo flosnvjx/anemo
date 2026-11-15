@@ -8,8 +8,7 @@ import android.os.ProxyFileDescriptorCallback;
 import android.system.ErrnoException;
 import android.system.OsConstants;
 
-import java.util.Arrays;
-
+import exe.bbllw8.anemo.documents.vfs.NativeMemory;
 import exe.bbllw8.anemo.documents.vfs.Vfs;
 import exe.bbllw8.anemo.documents.vfs.VfsNode;
 
@@ -25,20 +24,15 @@ public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
     @Override
     public long onGetSize() {
         synchronized (node) {
-            return node.data.length;
+            return node.size;
         }
     }
 
     @Override
     public int onRead(long offset, int size, byte[] data) {
         synchronized (node) {
-            final int len = node.data.length;
-            if (offset >= len) {
-                return 0;
-            }
-            final int toRead = (int) Math.min(size, len - offset);
-            System.arraycopy(node.data, (int) offset, data, 0, toRead);
-            return toRead;
+            final int read = NativeMemory.nativeRead(node.nativeHandle, offset, data, 0, size);
+            return read < 0 ? 0 : read;
         }
     }
 
@@ -46,27 +40,32 @@ public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
     public int onWrite(long offset, int size, byte[] data) throws ErrnoException {
         synchronized (node) {
             final long newEnd = offset + size;
-            final long grow = Math.max(0L, newEnd - node.data.length);
+            final long grow = newEnd > node.size ? newEnd - node.size : 0L;
             if (grow > 0 && !vfs.tryReserve(grow)) {
                 throw new ErrnoException("onWrite", OsConstants.ENOSPC);
             }
-            if (newEnd > node.data.length) {
-                node.data = Arrays.copyOf(node.data, (int) newEnd);
+            final int written = NativeMemory.nativeWrite(node.nativeHandle, offset, data, 0, size);
+            if (written < 0) {
+                if (grow > 0) {
+                    vfs.release(grow);
+                }
+                throw new ErrnoException("onWrite", OsConstants.ENOSPC);
             }
-            System.arraycopy(data, 0, node.data, (int) offset, size);
+            if (newEnd > node.size) {
+                node.size = newEnd;
+            }
             node.lastModified = System.currentTimeMillis();
-            return size;
+            return written;
         }
     }
 
     @Override
     public void onFsync() {
-        // no-op: data lives in memory
+        // no-op: data lives in native memory
     }
 
     @Override
     public void onRelease() {
-        // no-op: VfsNode is owned by the in-memory Vfs
+        // no-op: VfsNode owns the native buffer
     }
 }
-

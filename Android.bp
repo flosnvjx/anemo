@@ -1,6 +1,15 @@
 // Copyright (c) 2022 2bllw8
 // SPDX-License-Identifier: GPL-3.0-only
 
+cc_library_shared {
+    name: "libanemo_native",
+    srcs: [
+        "app/src/main/cpp/native_memory.c",
+    ],
+    sdk_version: "current",
+    stl: "none",
+}
+
 android_app {
     name: "anemo",
     manifest: "app/src/main/AndroidManifest.xml",
@@ -20,6 +29,7 @@ android_app {
         "androidx.annotation_annotation",
         "anemo-lib-either",
     ],
+    jni_libs: ["libanemo_native"],
 }
 
 java_import {

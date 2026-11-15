@@ -3,6 +3,10 @@
     public static *** d(...);
 }
 
+-keepclasseswithmembernames,includedescriptorclasses class * {
+    native <methods>;
+}
+
 -repackageclasses
 -allowaccessmodification
 -overloadaggressively

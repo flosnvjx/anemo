@@ -120,8 +120,7 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
     }
 
     private static long defaultQuotaBytes() {
-        final long half = Runtime.getRuntime().maxMemory() / 2L;
-        return half > 0 ? half : 1L;
+        final long max = Runtime.getRuntime().maxMemory();
+        return max > 0 ? max : 1L;
     }
 }
-
