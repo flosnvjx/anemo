@@ -31,6 +31,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import exe.bbllw8.anemo.documents.settings.StorageSettings;
 import exe.bbllw8.anemo.documents.vfs.Vfs;
 import exe.bbllw8.anemo.documents.vfs.VfsNode;
 
@@ -63,6 +64,8 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
     }
 
     protected abstract Vfs getVfs();
+
+    protected abstract StorageSettings getSettings();
 
     @Override
     public Cursor queryDocument(String documentId, String[] projection)
@@ -187,13 +190,11 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
             throw new IllegalStateException("No document " + documentId);
         }
         if (node.name.equals(safeName)) {
-            // ID is stable; return null when unchanged.
             return null;
         }
         if (!getVfs().rename(documentId, safeName)) {
             throw new IllegalStateException("Could not rename " + documentId);
         }
-        // IDs are stable across renames.
         return null;
     }
 
@@ -260,11 +261,12 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
         final int pfdMode = ParcelFileDescriptor.parseMode(mode);
         if ((pfdMode & ParcelFileDescriptor.MODE_TRUNCATE) != 0) {
             synchronized (node) {
+                getVfs().release(node.data.length);
                 node.data = new byte[0];
                 node.lastModified = System.currentTimeMillis();
             }
         }
-        final ProxyFileDescriptorCallback callback = new InMemoryFileCallback(node);
+        final ProxyFileDescriptorCallback callback = new InMemoryFileCallback(getVfs(), node);
         try {
             return getStorageManager().openProxyFileDescriptor(pfdMode, callback, getHandler());
         } catch (IOException e) {
@@ -276,6 +278,9 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
     public android.content.res.AssetFileDescriptor openDocumentThumbnail(
             String documentId, Point sizeHint, CancellationSignal signal)
             throws FileNotFoundException {
+        if (!getSettings().areThumbnailsEnabled()) {
+            throw new FileNotFoundException("Thumbnails are disabled");
+        }
         final VfsNode node = getVfs().get(documentId);
         if (node == null || node.isDirectory) {
             throw new FileNotFoundException("No file " + documentId);
@@ -330,7 +335,7 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
                 flags |= Document.FLAG_DIR_SUPPORTS_CREATE;
             } else {
                 flags |= Document.FLAG_SUPPORTS_WRITE;
-                if (mimeType.startsWith("image/")) {
+                if (getSettings().areThumbnailsEnabled() && mimeType.startsWith("image/")) {
                     flags |= Document.FLAG_SUPPORTS_THUMBNAIL;
                 }
             }
@@ -338,9 +343,7 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
                 flags |= Document.FLAG_SUPPORTS_DELETE;
                 flags |= Document.FLAG_SUPPORTS_RENAME;
                 flags |= Document.FLAG_SUPPORTS_MOVE;
-                if (node.isDirectory) {
-                    flags |= Document.FLAG_DIR_SUPPORTS_CREATE;
-                }
+                flags |= Document.FLAG_SUPPORTS_COPY;
             }
             row.add(Document.COLUMN_FLAGS, flags);
         }
@@ -364,7 +367,7 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
         return projection == null ? DEFAULT_PROJECTION : projection;
     }
 
-    private static int indexOf(String[] array, String target) {
+    protected static int indexOf(String[] array, String target) {
         for (int i = 0; i < array.length; i++) {
             if (Objects.equals(array[i], target)) {
                 return i;
@@ -373,3 +376,4 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
         return -1;
     }
 }
+

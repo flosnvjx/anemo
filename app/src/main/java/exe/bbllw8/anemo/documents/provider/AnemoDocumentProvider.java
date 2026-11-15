@@ -25,6 +25,7 @@ import java.util.function.Consumer;
 
 import exe.bbllw8.anemo.R;
 import exe.bbllw8.anemo.documents.home.HomeEnvironment;
+import exe.bbllw8.anemo.documents.settings.StorageSettings;
 import exe.bbllw8.anemo.documents.vfs.Vfs;
 import exe.bbllw8.anemo.lock.LockStore;
 import exe.bbllw8.anemo.lock.UnlockActivity;
@@ -38,10 +39,13 @@ public final class AnemoDocumentProvider extends VfsDocumentProvider {
             Root.COLUMN_ICON,
             Root.COLUMN_TITLE,
             Root.COLUMN_DOCUMENT_ID,
+            Root.COLUMN_AVAILABLE_BYTES,
+            Root.COLUMN_CAPACITY_BYTES,
     };
 
     private final Vfs vfs = new Vfs();
     private LockStore lockStore;
+    private StorageSettings storageSettings;
 
     private boolean showInfo = true;
 
@@ -57,12 +61,16 @@ public final class AnemoDocumentProvider extends VfsDocumentProvider {
         }
         lockStore = LockStore.getInstance(context);
         lockStore.addListener(onLockChanged);
+        storageSettings = StorageSettings.getInstance(context);
+        storageSettings.addListener(onSettingsChanged);
+        vfs.setMaxBytes(storageSettings.getQuotaBytes());
         return true;
     }
 
     @Override
     public void shutdown() {
         lockStore.removeListener(onLockChanged);
+        storageSettings.removeListener(onSettingsChanged);
         super.shutdown();
     }
 
@@ -72,14 +80,19 @@ public final class AnemoDocumentProvider extends VfsDocumentProvider {
     }
 
     @Override
+    protected StorageSettings getSettings() {
+        return storageSettings;
+    }
+
+    @Override
     public Cursor queryRoots(String[] projection) {
         if (lockStore.isLocked()) {
             return new EmptyCursor();
         }
 
         final Context context = getContext();
-        final MatrixCursor result = new MatrixCursor(
-                projection == null ? DEFAULT_ROOT_PROJECTION : projection);
+        final String[] columns = projection == null ? DEFAULT_ROOT_PROJECTION : projection;
+        final MatrixCursor result = new MatrixCursor(columns);
         final MatrixCursor.RowBuilder row = result.newRow();
 
         int flags = Root.FLAG_LOCAL_ONLY;
@@ -96,6 +109,18 @@ public final class AnemoDocumentProvider extends VfsDocumentProvider {
         if (context != null) {
             row.add(Root.COLUMN_TITLE, context.getString(R.string.app_name))
                     .add(Root.COLUMN_SUMMARY, context.getString(R.string.anemo_description));
+        }
+
+        final long quota = storageSettings.getQuotaBytes();
+        if (quota >= 0) {
+            final long used = vfs.getTotalBytes();
+            final long available = Math.max(0L, quota - used);
+            if (indexOf(columns, Root.COLUMN_AVAILABLE_BYTES) != -1) {
+                row.add(Root.COLUMN_AVAILABLE_BYTES, available);
+            }
+            if (indexOf(columns, Root.COLUMN_CAPACITY_BYTES) != -1) {
+                row.add(Root.COLUMN_CAPACITY_BYTES, quota);
+            }
         }
         return result;
     }
@@ -212,11 +237,19 @@ public final class AnemoDocumentProvider extends VfsDocumentProvider {
         }
     }
 
-    private final Consumer<Boolean> onLockChanged = isLocked -> {
+    private final Consumer<Boolean> onLockChanged = isLocked -> notifyRootsChanged();
+
+    private final Runnable onSettingsChanged = () -> {
+        vfs.setMaxBytes(storageSettings.getQuotaBytes());
+        notifyRootsChanged();
+    };
+
+    private void notifyRootsChanged() {
         final Context context = getContext();
         if (context != null) {
             context.getContentResolver().notifyChange(
                     DocumentsContract.buildRootsUri(HomeEnvironment.AUTHORITY), null);
         }
-    };
+    }
 }
+

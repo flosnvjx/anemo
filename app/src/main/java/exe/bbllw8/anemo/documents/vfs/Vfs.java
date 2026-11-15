@@ -17,10 +17,47 @@ public final class Vfs {
 
     private final Map<String, VfsNode> nodes = new ConcurrentHashMap<>();
     private final AtomicLong idCounter = new AtomicLong();
+    private final AtomicLong totalBytes = new AtomicLong(0L);
+    private volatile long maxBytes = -1L;
 
     public Vfs() {
         final VfsNode root = new VfsNode(ROOT_ID, null, "anemo", true);
         nodes.put(root.id, root);
+    }
+
+    public long getTotalBytes() {
+        return totalBytes.get();
+    }
+
+    public long getMaxBytes() {
+        return maxBytes;
+    }
+
+    public void setMaxBytes(long bytes) {
+        this.maxBytes = bytes;
+    }
+
+    public boolean tryReserve(long delta) {
+        if (delta <= 0) {
+            return true;
+        }
+        while (true) {
+            final long current = totalBytes.get();
+            final long next = current + delta;
+            final long limit = maxBytes;
+            if (limit >= 0 && next > limit) {
+                return false;
+            }
+            if (totalBytes.compareAndSet(current, next)) {
+                return true;
+            }
+        }
+    }
+
+    public void release(long delta) {
+        if (delta > 0) {
+            totalBytes.addAndGet(-delta);
+        }
     }
 
     public VfsNode getRoot() {
@@ -66,10 +103,13 @@ public final class Vfs {
         if (parent.childIds.containsKey(name)) {
             return null;
         }
+        final long initialSize = isDirectory ? 0L : (data == null ? 0L : data.length);
+        if (initialSize > 0 && !tryReserve(initialSize)) {
+            return null;
+        }
         final VfsNode node = new VfsNode("doc-" + idCounter.incrementAndGet(), parentId, name,
                 isDirectory);
         if (!isDirectory) {
-            // Defensive copy: callers (e.g. copyRecursive) may pass a shared buffer.
             node.data = data == null ? new byte[0] : Arrays.copyOf(data, data.length);
         }
         nodes.put(node.id, node);
@@ -93,6 +133,8 @@ public final class Vfs {
         }
         if (node.isDirectory) {
             deleteChildren(node);
+        } else {
+            release(node.data.length);
         }
         nodes.remove(id);
         return true;
@@ -104,6 +146,8 @@ public final class Vfs {
             if (child != null) {
                 if (child.isDirectory) {
                     deleteChildren(child);
+                } else {
+                    release(child.data.length);
                 }
                 nodes.remove(childId);
             }
@@ -119,7 +163,6 @@ public final class Vfs {
             return false;
         }
         if (node.name.equals(newName)) {
-            // No-op: renaming to the same name is a successful rename.
             return true;
         }
         final VfsNode parent = nodes.get(node.parentId);
@@ -176,7 +219,6 @@ public final class Vfs {
     }
 
     private VfsNode copyRecursive(VfsNode source, String parentId, String name) {
-        // createNode defensively copies non-null data, so the copy is independent.
         final VfsNode copy = createNode(parentId, name, source.isDirectory, source.data);
         if (copy != null && source.isDirectory) {
             for (final String childId : source.childIds.values()) {

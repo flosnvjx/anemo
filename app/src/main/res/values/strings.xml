@@ -63,6 +63,16 @@
     <string name="configuration_storage_unlock">Unlock storage access</string>
     <string name="configuration_storage_unlock_biometric">Allow storage unlock with biometric access</string>
     <string name="configuration_storage_lock_auto">Automatically lock access after 15 minutes</string>
+
+    <string name="configuration_storage_section">Storage</string>
+    <string name="configuration_thumbnails">Show image thumbnails</string>
+    <string name="configuration_storage_quota">Storage quota</string>
+    <string name="configuration_storage_quota_value">Storage quota: %1$s</string>
+    <string name="configuration_storage_quota_unlimited">Unlimited</string>
+    <string name="configuration_storage_quota_set_size">Set size (MiB)</string>
+    <string name="configuration_storage_quota_reset_default">Reset to default (50%% of memory)</string>
+    <string name="configuration_storage_quota_unit">MiB</string>
+
     <string name="configuration_battery_optimization">Ignore battery optimizations</string>
     <string name="configuration_battery_optimization_done">Battery optimizations are disabled</string>
 

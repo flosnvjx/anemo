@@ -5,15 +5,20 @@
 package exe.bbllw8.anemo.documents.provider;
 
 import android.os.ProxyFileDescriptorCallback;
+import android.system.ErrnoException;
+import android.system.OsConstants;
 
 import java.util.Arrays;
 
+import exe.bbllw8.anemo.documents.vfs.Vfs;
 import exe.bbllw8.anemo.documents.vfs.VfsNode;
 
 public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
+    private final Vfs vfs;
     private final VfsNode node;
 
-    public InMemoryFileCallback(VfsNode node) {
+    public InMemoryFileCallback(Vfs vfs, VfsNode node) {
+        this.vfs = vfs;
         this.node = node;
     }
 
@@ -38,11 +43,15 @@ public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
     }
 
     @Override
-    public int onWrite(long offset, int size, byte[] data) {
+    public int onWrite(long offset, int size, byte[] data) throws ErrnoException {
         synchronized (node) {
-            final int end = (int) offset + size;
-            if (end > node.data.length) {
-                node.data = Arrays.copyOf(node.data, end);
+            final long newEnd = offset + size;
+            final long grow = Math.max(0L, newEnd - node.data.length);
+            if (grow > 0 && !vfs.tryReserve(grow)) {
+                throw new ErrnoException("onWrite", OsConstants.ENOSPC);
+            }
+            if (newEnd > node.data.length) {
+                node.data = Arrays.copyOf(node.data, (int) newEnd);
             }
             System.arraycopy(data, 0, node.data, (int) offset, size);
             node.lastModified = System.currentTimeMillis();
