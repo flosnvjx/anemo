@@ -61,10 +61,8 @@ public final class KeepAliveService extends Service {
             if (Build.VERSION.SDK_INT >= 34) {
                 startForeground(NOTIFICATION_ID, buildNotification(),
                         ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
-            } else if (Build.VERSION.SDK_INT >= 29) {
-                startForeground(NOTIFICATION_ID, buildNotification(),
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
             } else {
+                // API 33 and below: no foreground service type is required
                 startForeground(NOTIFICATION_ID, buildNotification());
             }
         } catch (Exception e) {
