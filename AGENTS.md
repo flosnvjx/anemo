@@ -66,5 +66,7 @@ In-memory VFS mutations must be synchronized on the Vfs instance.
 
 Proxy callback reads, writes, and truncates must be synchronized on the target node.
 
+Deletion of a file node must acquire the node monitor before freeing the native buffer, so an in-flight callback cannot use a freed handle. The same applies to deleteChildren. Lock ordering is always Vfs monitor first, then node monitor; never the other way.
+
 Native buffers are owned by VfsNode instances; every nativeAlloc must be paired with a nativeFree on delete or shutdown.
 

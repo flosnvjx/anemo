@@ -178,11 +178,14 @@ public final class Vfs {
         if (node.isDirectory) {
             deleteChildren(node);
         } else {
-            if (node.nativeHandle != 0L) {
-                NativeMemory.nativeFree(node.nativeHandle);
-                node.nativeHandle = 0L;
+            synchronized (node) {
+                if (node.nativeHandle != 0L) {
+                    NativeMemory.nativeFree(node.nativeHandle);
+                    node.nativeHandle = 0L;
+                }
+                release(node.size);
+                node.size = 0L;
             }
-            release(node.size);
         }
         nodes.remove(id);
         return true;
@@ -195,11 +198,14 @@ public final class Vfs {
                 if (child.isDirectory) {
                     deleteChildren(child);
                 } else {
-                    if (child.nativeHandle != 0L) {
-                        NativeMemory.nativeFree(child.nativeHandle);
-                        child.nativeHandle = 0L;
+                    synchronized (child) {
+                        if (child.nativeHandle != 0L) {
+                            NativeMemory.nativeFree(child.nativeHandle);
+                            child.nativeHandle = 0L;
+                        }
+                        release(child.size);
+                        child.size = 0L;
                     }
-                    release(child.size);
                 }
                 nodes.remove(childId);
             }
