@@ -4,6 +4,7 @@
  */
 package exe.bbllw8.anemo.power;
 
+import android.Manifest;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -11,6 +12,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.graphics.drawable.Icon;
 import android.os.Build;
@@ -32,6 +34,11 @@ public final class KeepAliveService extends Service {
     private static final String ACTION_NUKE_EXIT = "exe.bbllw8.anemo.action.NUKE_EXIT";
 
     public static void start(Context context) {
+        if (Build.VERSION.SDK_INT >= 33
+                && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
         final Intent intent = new Intent(context, KeepAliveService.class);
         try {
             if (Build.VERSION.SDK_INT >= 26) {

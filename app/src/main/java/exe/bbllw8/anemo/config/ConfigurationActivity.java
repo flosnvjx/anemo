@@ -127,6 +127,7 @@ public final class ConfigurationActivity extends Activity {
         updateStorageUsageView();
 
         maybeRequestNotificationPermission();
+        KeepAliveService.start(this);
     }
 
     @Override
@@ -150,10 +151,7 @@ public final class ConfigurationActivity extends Activity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == NOTIFICATION_PERMISSION_REQ) {
             storageSettings.markNotificationPromptShown();
-            if (grantResults.length > 0
-                    && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                KeepAliveService.start(this);
-            }
+            KeepAliveService.start(this);
         }
     }
 
