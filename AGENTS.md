@@ -38,6 +38,12 @@ The DocumentsProvider must not be exposed through a Quick Settings tile or an au
 
 First-run battery optimization and notification permission prompts are shown from UnlockActivity, which LauncherActivity routes through when needed. If the system prompt cannot be shown, the user can reach the same settings from ConfigurationActivity.
 
+The keep-alive foreground service must declare both dataSync and specialUse foregroundServiceType in the manifest. The type passed to startForeground is selected by SDK version: specialUse on API 34+, dataSync on API 29 to 33, no type before that. startForeground failures must be logged and must stop the service; do not swallow them silently.
+
+The keep-alive service is only started when POST_NOTIFICATIONS is granted on API 33+. Without a visible notification the service would be killed or would display a misleading system notification.
+
+The notification small icon must be a monochrome drawable. Do not use the adaptive launcher icon.
+
 Prefer framework APIs over third-party libraries. Do not introduce new dependencies.
 
 Do not modify existing translation strings. Add new strings under new names.

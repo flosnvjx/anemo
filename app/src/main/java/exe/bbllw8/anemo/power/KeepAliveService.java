@@ -14,6 +14,7 @@ import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 
@@ -21,6 +22,7 @@ import exe.bbllw8.anemo.R;
 import exe.bbllw8.anemo.shell.LauncherActivity;
 
 public final class KeepAliveService extends Service {
+    private static final String TAG = "KeepAliveService";
     private static final String CHANNEL_ID = "anemo_keep_alive";
     private static final int NOTIFICATION_ID = 0x10;
 
@@ -32,8 +34,8 @@ public final class KeepAliveService extends Service {
             } else {
                 context.startService(intent);
             }
-        } catch (Exception ignored) {
-            // foreground start may be restricted; nothing else to do
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to start keep-alive service", e);
         }
     }
 
@@ -43,14 +45,20 @@ public final class KeepAliveService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(NOTIFICATION_ID, buildNotification(),
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
-        } else if (Build.VERSION.SDK_INT >= 29) {
-            startForeground(NOTIFICATION_ID, buildNotification(),
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
-        } else {
-            startForeground(NOTIFICATION_ID, buildNotification());
+        try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(NOTIFICATION_ID, buildNotification(),
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            } else if (Build.VERSION.SDK_INT >= 29) {
+                startForeground(NOTIFICATION_ID, buildNotification(),
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else {
+                startForeground(NOTIFICATION_ID, buildNotification());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to enter foreground, stopping service", e);
+            stopSelf();
+            return START_NOT_STICKY;
         }
         return START_STICKY;
     }
@@ -68,6 +76,7 @@ public final class KeepAliveService extends Service {
                     getString(R.string.keep_alive_channel_name),
                     NotificationManager.IMPORTANCE_LOW);
             channel.setDescription(getString(R.string.keep_alive_channel_description));
+            channel.setShowBadge(false);
             nm.createNotificationChannel(channel);
         }
         final PendingIntent pi = PendingIntent.getActivity(this, 0,
@@ -77,9 +86,10 @@ public final class KeepAliveService extends Service {
                 : new Notification.Builder(this);
         return builder.setContentTitle(getString(R.string.keep_alive_notification_title))
                 .setContentText(getString(R.string.keep_alive_notification_text))
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentIntent(pi)
                 .setOngoing(true)
+                .setShowWhen(false)
                 .build();
     }
 }

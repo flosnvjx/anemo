@@ -25,6 +25,7 @@ import exe.bbllw8.anemo.documents.settings.StorageSettings;
 import exe.bbllw8.anemo.lock.LockStore;
 import exe.bbllw8.anemo.lock.UnlockActivity;
 import exe.bbllw8.anemo.power.BatteryOptimizationHelper;
+import exe.bbllw8.anemo.power.KeepAliveService;
 
 public class LauncherActivity extends Activity {
     // https://cs.android.com/android/platform/superproject/+/master:packages/apps/DocumentsUI/AndroidManifest.xml
@@ -59,6 +60,7 @@ public class LauncherActivity extends Activity {
             startActivity(new Intent(this, UnlockActivity.class)
                     .putExtra(UnlockActivity.OPEN_AFTER_UNLOCK, true));
         } else {
+            maybeStartKeepAlive();
             launchFilesApp();
         }
         finish();
@@ -79,6 +81,15 @@ public class LauncherActivity extends Activity {
         return false;
     }
 
+    private void maybeStartKeepAlive() {
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        KeepAliveService.start(this);
+    }
+
     private void launchFilesApp() {
         final PackageManager pm = getPackageManager();
         final Optional<Intent> fileIntent = Arrays.stream(LAUNCHER_INTENTS)
@@ -96,4 +107,3 @@ public class LauncherActivity extends Activity {
         return pm.resolveActivity(intent, PackageManager.MATCH_ALL) != null;
     }
 }
-
