@@ -11,7 +11,7 @@ import android.graphics.Point;
 import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.Handler;
-import android.os.Looper;
+import android.os.HandlerThread;
 import android.os.ParcelFileDescriptor;
 import android.os.ProxyFileDescriptorCallback;
 import android.os.storage.StorageManager;
@@ -50,12 +50,25 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
             Document.COLUMN_SIZE,
     };
 
+    private HandlerThread handlerThread;
     private Handler handler;
 
     @Override
     public boolean onCreate() {
-        handler = new Handler(Looper.getMainLooper());
+        handlerThread = new HandlerThread("anemo-vfs-proxy");
+        handlerThread.start();
+        handler = new Handler(handlerThread.getLooper());
         return true;
+    }
+
+    @Override
+    public void shutdown() {
+        if (handlerThread != null) {
+            handlerThread.quitSafely();
+            handlerThread = null;
+        }
+        handler = null;
+        super.shutdown();
     }
 
     protected final Handler getHandler() {

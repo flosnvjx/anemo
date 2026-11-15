@@ -82,8 +82,11 @@ Java_exe_bbllw8_anemo_documents_vfs_NativeMemory_nativeRead(
         jbyteArray dst, jint dstOff, jint len) {
     (void)clazz;
     NativeBuffer *buf = buf_from_handle(handle);
-    if (buf == NULL || offset < 0 || len < 0 || dstOff < 0) {
-        return -1;
+    if (buf == NULL) {
+        return -EINVAL;
+    }
+    if (offset < 0 || len < 0 || dstOff < 0) {
+        return -EINVAL;
     }
     size_t off = (size_t)offset;
     if (off >= buf->size) {

@@ -18,6 +18,15 @@ public final class NativeMemory {
 
     public static native long nativeSize(long handle);
 
+    /**
+     * Reads up to {@code len} bytes from the native buffer at {@code offset} into
+     * {@code dst[dstOff..]}.
+     *
+     * @return the number of bytes read (0 at EOF or for a zero-length read), or
+     *     {@code -(errno)} on failure. The only errno value produced here is
+     *     {@link android.system.OsConstants#EINVAL} for a bad argument (null handle, negative
+     *     offset, negative length, negative array offset).
+     */
     public static native int nativeRead(long handle, long offset, byte[] dst, int dstOff,
             int len);
 

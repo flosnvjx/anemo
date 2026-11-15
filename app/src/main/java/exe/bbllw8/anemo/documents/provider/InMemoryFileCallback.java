@@ -29,10 +29,13 @@ public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
     }
 
     @Override
-    public int onRead(long offset, int size, byte[] data) {
+    public int onRead(long offset, int size, byte[] data) throws ErrnoException {
         synchronized (node) {
             final int read = NativeMemory.nativeRead(node.nativeHandle, offset, data, 0, size);
-            return read < 0 ? 0 : read;
+            if (read < 0) {
+                throw new ErrnoException("onRead", mapErrno(-read));
+            }
+            return read;
         }
     }
 
@@ -66,7 +69,10 @@ public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
         if (errno == OsConstants.EFBIG) {
             return OsConstants.EFBIG;
         }
-        return OsConstants.ENOSPC;
+        if (errno == OsConstants.ENOSPC) {
+            return OsConstants.ENOSPC;
+        }
+        return OsConstants.EIO;
     }
 
     @Override
