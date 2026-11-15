@@ -8,6 +8,7 @@ import android.os.ProxyFileDescriptorCallback;
 import android.system.ErrnoException;
 import android.system.OsConstants;
 
+import exe.bbllw8.anemo.documents.vfs.IoStats;
 import exe.bbllw8.anemo.documents.vfs.NativeMemory;
 import exe.bbllw8.anemo.documents.vfs.Vfs;
 import exe.bbllw8.anemo.documents.vfs.VfsNode;
@@ -35,6 +36,9 @@ public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
             if (read < 0) {
                 throw new ErrnoException("onRead", mapErrno(-read));
             }
+            if (read > 0) {
+                IoStats.recordRead(read);
+            }
             return read;
         }
     }
@@ -53,6 +57,9 @@ public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
                     vfs.release(grow);
                 }
                 throw new ErrnoException("onWrite", mapErrno(-written));
+            }
+            if (written > 0) {
+                IoStats.recordWrite(written);
             }
             if (newEnd > node.size) {
                 node.size = newEnd;
@@ -85,3 +92,4 @@ public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
         // no-op: VfsNode owns the native buffer
     }
 }
+

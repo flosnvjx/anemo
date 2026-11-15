@@ -26,8 +26,14 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
     private static final String KEY_QUOTA_BYTES = "quota_bytes";
     private static final String KEY_BATTERY_PROMPT_SHOWN = "battery_prompt_shown";
     private static final String KEY_NOTIFICATION_PROMPT_SHOWN = "notification_prompt_shown";
+    private static final String KEY_IO_METER_ENABLED = "io_meter_enabled";
+    private static final String KEY_IO_METER_INTERVAL_SECONDS = "io_meter_interval_seconds";
 
     private static final long DEFAULT_THUMBNAIL_MAX_SIZE_BYTES = 32L * 1024L * 1024L;
+    private static final int DEFAULT_IO_METER_INTERVAL_SECONDS = 1;
+
+    public static final int MIN_IO_METER_INTERVAL_SECONDS = 1;
+    public static final int MAX_IO_METER_INTERVAL_SECONDS = 60;
 
     public static final long UNLIMITED = -1L;
 
@@ -140,6 +146,29 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
         }
     }
 
+    public boolean isIoMeterEnabled() {
+        return preferences.getBoolean(KEY_IO_METER_ENABLED, false);
+    }
+
+    public void setIoMeterEnabled(boolean enabled) {
+        preferences.edit().putBoolean(KEY_IO_METER_ENABLED, enabled).apply();
+    }
+
+    public int getIoMeterIntervalSeconds() {
+        final int seconds = preferences.getInt(KEY_IO_METER_INTERVAL_SECONDS,
+                DEFAULT_IO_METER_INTERVAL_SECONDS);
+        return Math.max(MIN_IO_METER_INTERVAL_SECONDS,
+                Math.min(MAX_IO_METER_INTERVAL_SECONDS, seconds));
+    }
+
+    public void setIoMeterIntervalSeconds(int seconds) {
+        if (seconds < MIN_IO_METER_INTERVAL_SECONDS
+                || seconds > MAX_IO_METER_INTERVAL_SECONDS) {
+            return;
+        }
+        preferences.edit().putInt(KEY_IO_METER_INTERVAL_SECONDS, seconds).apply();
+    }
+
     public long getQuotaBytes() {
         return preferences.getLong(KEY_QUOTA_BYTES, defaultQuotaBytes);
     }
@@ -195,3 +224,4 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
         return max > 0 ? max : 1L;
     }
 }
+

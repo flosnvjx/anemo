@@ -74,6 +74,12 @@
     <string name="configuration_thumbnail_max_size">Thumbnail max file size</string>
     <string name="configuration_thumbnail_max_size_value">Max size: %1$s</string>
 
+    <string name="configuration_io_meter">Show I/O meter in notification</string>
+    <string name="configuration_io_meter_interval">I/O meter update interval</string>
+    <string name="configuration_io_meter_interval_value">Update interval: %1$d s</string>
+    <string name="configuration_io_meter_interval_set">Set interval (seconds)</string>
+    <string name="configuration_io_meter_interval_invalid">Interval must be between 1 and 60 seconds</string>
+
     <string name="configuration_storage_quota">Storage quota</string>
     <string name="configuration_storage_quota_value">Storage quota: %1$s</string>
     <string name="configuration_storage_quota_unlimited">Unlimited</string>
@@ -100,6 +106,7 @@
     <string name="keep_alive_channel_description">Keeps the in-memory Anemo storage available while files are in use.</string>
     <string name="keep_alive_notification_title">Anemo storage is active</string>
     <string name="keep_alive_notification_text">Anemo keeps its private storage in memory while it is in use.</string>
+    <string name="keep_alive_io_meter">↑ %1$s  ↓ %2$s</string>
     <string name="keep_alive_action_nuke">Nuke</string>
     <string name="keep_alive_action_nuke_exit">Nuke &amp; Exit</string>
 </resources>

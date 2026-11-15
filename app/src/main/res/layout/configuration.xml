@@ -112,6 +112,30 @@
             android:visibility="gone"
             tools:text="@string/configuration_thumbnail_max_size" />
 
+        <Switch
+            android:id="@+id/configuration_io_meter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:foreground="?android:attr/selectableItemBackground"
+            android:minHeight="56dp"
+            android:paddingHorizontal="16dp"
+            android:text="@string/configuration_io_meter"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/configuration_io_meter_interval"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:foreground="?android:attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:minHeight="56dp"
+            android:paddingHorizontal="16dp"
+            android:paddingStart="32dp"
+            android:textColor="?android:textColorPrimary"
+            android:textSize="16sp"
+            android:visibility="gone"
+            tools:text="@string/configuration_io_meter_interval" />
+
         <TextView
             android:id="@+id/configuration_storage_quota"
             android:layout_width="match_parent"
@@ -157,3 +181,4 @@
             tools:text="@string/configuration_battery_optimization" />
     </LinearLayout>
 </ScrollView>
+

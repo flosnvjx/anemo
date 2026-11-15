@@ -50,7 +50,9 @@ public final class ConfigurationActivity extends Activity {
     private TextView storageUsageView;
     private TextView thumbnailExtensionsView;
     private TextView thumbnailMaxSizeView;
+    private TextView ioMeterIntervalView;
     private Switch thumbnailsSwitch;
+    private Switch ioMeterSwitch;
     private Switch biometricSwitch;
 
     private LockStore lockStore;
@@ -106,6 +108,16 @@ public final class ConfigurationActivity extends Activity {
         thumbnailMaxSizeView = findViewById(R.id.configuration_thumbnail_max_size);
         thumbnailMaxSizeView.setOnClickListener($ -> showThumbnailMaxSizeDialog());
 
+        ioMeterSwitch = findViewById(R.id.configuration_io_meter);
+        ioMeterSwitch.setChecked(storageSettings.isIoMeterEnabled());
+        ioMeterSwitch.setOnCheckedChangeListener((v, isChecked) -> {
+            storageSettings.setIoMeterEnabled(isChecked);
+            updateIoMeterSubOptions();
+        });
+
+        ioMeterIntervalView = findViewById(R.id.configuration_io_meter_interval);
+        ioMeterIntervalView.setOnClickListener($ -> showIoMeterIntervalDialog());
+
         storageQuotaView = findViewById(R.id.configuration_storage_quota);
         storageQuotaView.setOnClickListener($ -> showQuotaDialog());
 
@@ -124,6 +136,7 @@ public final class ConfigurationActivity extends Activity {
         updateBatteryOptimizationView();
         updateQuotaView();
         updateThumbnailSubOptions();
+        updateIoMeterSubOptions();
         updateStorageUsageView();
 
         maybeRequestNotificationPermission();
@@ -238,6 +251,14 @@ public final class ConfigurationActivity extends Activity {
                 getString(R.string.configuration_storage_quota_unit));
         thumbnailMaxSizeView.setText(
                 getString(R.string.configuration_thumbnail_max_size_value, value));
+    }
+
+    private void updateIoMeterSubOptions() {
+        ioMeterIntervalView.setVisibility(ioMeterSwitch.isChecked()
+                ? View.VISIBLE
+                : View.GONE);
+        ioMeterIntervalView.setText(getString(R.string.configuration_io_meter_interval_value,
+                storageSettings.getIoMeterIntervalSeconds()));
     }
 
     private void showStorageUsageDialog() {
@@ -380,6 +401,32 @@ public final class ConfigurationActivity extends Activity {
                 .show();
     }
 
+    private void showIoMeterIntervalDialog() {
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        input.setText(String.valueOf(storageSettings.getIoMeterIntervalSeconds()));
+        new AlertDialog.Builder(this, R.style.DialogTheme)
+                .setTitle(R.string.configuration_io_meter_interval_set)
+                .setView(input)
+                .setPositiveButton(android.R.string.ok, (d, which) -> {
+                    final int seconds;
+                    try {
+                        seconds = Integer.parseInt(input.getText().toString().trim());
+                    } catch (NumberFormatException ignored) {
+                        return;
+                    }
+                    if (seconds < StorageSettings.MIN_IO_METER_INTERVAL_SECONDS
+                            || seconds > StorageSettings.MAX_IO_METER_INTERVAL_SECONDS) {
+                        Toast.makeText(this, R.string.configuration_io_meter_interval_invalid,
+                                Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    storageSettings.setIoMeterIntervalSeconds(seconds);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     private static String formatBytes(long bytes) {
         if (bytes < 1024L) {
             return bytes + " B";
@@ -406,8 +453,12 @@ public final class ConfigurationActivity extends Activity {
         if (thumbnailsSwitch.isChecked() != storageSettings.areThumbnailsEnabled()) {
             thumbnailsSwitch.setChecked(storageSettings.areThumbnailsEnabled());
         }
+        if (ioMeterSwitch.isChecked() != storageSettings.isIoMeterEnabled()) {
+            ioMeterSwitch.setChecked(storageSettings.isIoMeterEnabled());
+        }
         updateQuotaView();
         updateThumbnailSubOptions();
+        updateIoMeterSubOptions();
     };
 
     private void enableEdgeToEdge() {
@@ -428,3 +479,4 @@ public final class ConfigurationActivity extends Activity {
         });
     }
 }
+
