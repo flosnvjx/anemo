@@ -19,7 +19,6 @@ import android.provider.DocumentsContract;
 import android.provider.DocumentsContract.Document;
 import android.provider.DocumentsProvider;
 import android.util.Log;
-import android.webkit.MimeTypeMap;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -31,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import exe.bbllw8.anemo.documents.settings.StorageSettings;
@@ -288,7 +288,8 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
         if (node == null || node.isDirectory) {
             throw new FileNotFoundException("No file " + documentId);
         }
-        if (!isThumbnailAllowed(node)) {
+        final String mimeType = PathUtils.getDocumentType(node.name, false);
+        if (!isThumbnailAllowed(node, mimeType)) {
             throw new FileNotFoundException("Thumbnails not enabled for " + documentId);
         }
         final ParcelFileDescriptor pfd = openDocument(documentId, "r", signal);
@@ -340,7 +341,7 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
                 flags |= Document.FLAG_DIR_SUPPORTS_CREATE;
             } else {
                 flags |= Document.FLAG_SUPPORTS_WRITE;
-                if (isThumbnailAllowed(node)) {
+                if (isThumbnailAllowed(node, mimeType)) {
                     flags |= Document.FLAG_SUPPORTS_THUMBNAIL;
                 }
             }
@@ -368,32 +369,27 @@ public abstract class VfsDocumentProvider extends DocumentsProvider {
         return row;
     }
 
-    private boolean isThumbnailAllowed(VfsNode node) {
+    private boolean isThumbnailAllowed(VfsNode node, String mimeType) {
         if (node.isDirectory) {
             return false;
         }
-        if (!getSettings().areThumbnailsEnabled()) {
+        final StorageSettings settings = getSettings();
+        if (!settings.areThumbnailsEnabled()) {
             return false;
         }
-        if (node.size > getSettings().getThumbnailMaxSizeBytes()) {
+        if (node.size > settings.getThumbnailMaxSizeBytes()) {
             return false;
+        }
+        final Set<String> configured = settings.getThumbnailExtensionSet();
+        if (configured.isEmpty()) {
+            return mimeType.startsWith("image/");
         }
         final int dot = node.name.lastIndexOf('.');
         if (dot < 0 || dot == node.name.length() - 1) {
             return false;
         }
         final String ext = node.name.substring(dot + 1).toLowerCase(Locale.ROOT);
-        final String configured = getSettings().getThumbnailExtensions();
-        if (configured.isEmpty()) {
-            final String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext);
-            return mime != null && mime.startsWith("image/");
-        }
-        for (final String item : configured.split(",")) {
-            if (item.trim().equalsIgnoreCase(ext)) {
-                return true;
-            }
-        }
-        return false;
+        return configured.contains(ext);
     }
 
     private static String[] resolveProjection(String[] projection) {

@@ -12,7 +12,11 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 public final class StorageSettings implements SharedPreferences.OnSharedPreferenceChangeListener {
     private static final String PREFS = "storage_settings";
@@ -31,6 +35,7 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
     private final SharedPreferences preferences;
     private final long defaultQuotaBytes;
     private final List<Runnable> listeners = new ArrayList<>();
+    private volatile Set<String> thumbnailExtensionsCache;
 
     private static volatile StorageSettings instance;
 
@@ -60,6 +65,9 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
     @Override
     public void onSharedPreferenceChanged(@NonNull SharedPreferences sharedPreferences,
                                           @Nullable String key) {
+        if (KEY_THUMBNAIL_EXTENSIONS.equals(key)) {
+            thumbnailExtensionsCache = null;
+        }
         final Runnable[] snapshot;
         synchronized (listeners) {
             snapshot = listeners.toArray(new Runnable[0]);
@@ -97,6 +105,27 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
         preferences.edit()
                 .putString(KEY_THUMBNAIL_EXTENSIONS, extensions == null ? "" : extensions)
                 .apply();
+    }
+
+    public Set<String> getThumbnailExtensionSet() {
+        Set<String> cached = thumbnailExtensionsCache;
+        if (cached == null) {
+            final String raw = getThumbnailExtensions();
+            if (raw.isEmpty()) {
+                cached = Collections.emptySet();
+            } else {
+                final Set<String> parsed = new HashSet<>();
+                for (final String item : raw.split(",")) {
+                    final String trimmed = item.trim();
+                    if (!trimmed.isEmpty()) {
+                        parsed.add(trimmed.toLowerCase(Locale.ROOT));
+                    }
+                }
+                cached = parsed.isEmpty() ? Collections.emptySet() : parsed;
+            }
+            thumbnailExtensionsCache = cached;
+        }
+        return cached;
     }
 
     public long getThumbnailMaxSizeBytes() {
