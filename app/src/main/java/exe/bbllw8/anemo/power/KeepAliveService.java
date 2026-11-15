@@ -277,9 +277,8 @@ public final class KeepAliveService extends Service {
 
     private String buildContentText() {
         if (storageSettings != null && storageSettings.isIoMeterEnabled()) {
-            return getString(R.string.keep_alive_notification_text) + " · "
-                    + getString(R.string.keep_alive_io_meter,
-                            formatRate(currentReadRate), formatRate(currentWriteRate));
+            return getString(R.string.keep_alive_io_meter,
+                    formatRate(currentReadRate), formatRate(currentWriteRate));
         }
         return getString(R.string.keep_alive_notification_text);
     }
