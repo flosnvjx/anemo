@@ -23,6 +23,7 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
 
     public static final long UNLIMITED = -1L;
 
+    private final Context appContext;
     private final SharedPreferences preferences;
     private final long defaultQuotaBytes;
     private final List<Runnable> listeners = new ArrayList<>();
@@ -41,6 +42,7 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
     }
 
     private StorageSettings(Context context) {
+        appContext = context;
         preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         preferences.registerOnSharedPreferenceChangeListener(this);
         defaultQuotaBytes = computeDefaultQuotaBytes(context);
@@ -103,7 +105,9 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
     }
 
     public void resetQuotaToDefault() {
-        preferences.edit().putLong(KEY_QUOTA_BYTES, defaultQuotaBytes).apply();
+        final long currentDefault = computeDefaultQuotaBytes(appContext);
+        final long effective = Math.max(currentDefault, defaultQuotaBytes);
+        preferences.edit().putLong(KEY_QUOTA_BYTES, effective).apply();
     }
 
     public boolean wasBatteryPromptShown() {
