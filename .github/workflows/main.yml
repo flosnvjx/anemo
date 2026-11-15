@@ -30,14 +30,27 @@ jobs:
           distribution: 'temurin'
           java-version: 21
           cache: 'gradle'
-      - name: Signing key
-        if: ${{ github.event_name == 'push' }}
+      - name: Generate one-off dev signing key
         run: |
-          echo 'androidStorePassword=${{ secrets.KEY_STORE_PASSWORD }}' >> local.properties
-          echo 'androidKeyAlias=${{ secrets.ALIAS }}' >> local.properties
-          echo 'androidKeyPassword=${{ secrets.KEY_PASSWORD }}' >> local.properties
-          echo 'androidStoreFile=sign_key.jks' >> local.properties
-          echo '${{ secrets.KEY_STORE }}' | base64 --decode > sign_key.jks
+          STORE_PASS="$(openssl rand -hex 16)"
+          KEY_PASS="$STORE_PASS"
+          ALIAS="anemo-dev"
+          KEYSTORE_PATH="$RUNNER_TEMP/anemo-signing.jks"
+          keytool -genkeypair -v \
+            -keystore "$KEYSTORE_PATH" \
+            -storepass "$STORE_PASS" \
+            -keypass "$KEY_PASS" \
+            -alias "$ALIAS" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Anemo Dev, OU=Dev, O=Fork, L=Unknown, ST=Unknown, C=US"
+          {
+            echo "androidStorePassword=$STORE_PASS"
+            echo "androidKeyAlias=$ALIAS"
+            echo "androidKeyPassword=$KEY_PASS"
+            echo "androidStoreFile=$KEYSTORE_PATH"
+          } >> local.properties
       - name: Build
         id: build
         run: |
@@ -45,12 +58,11 @@ jobs:
           echo 'org.gradle.parallel=true' >> gradle.properties
           echo 'org.gradle.vfs.watch=true' >> gradle.properties
           echo 'org.gradle.jvmargs=-Xmx2048m' >> gradle.properties
-          ./gradlew :app:assembleDebug
+          ./gradlew :app:assembleRelease
       - name: Upload artifacts
-        if: ${{ github.event_name == 'push' }}
         uses: actions/upload-artifact@v7
         with:
-          name: app.apk
-          path: "app/build/outputs/apk/debug/app-debug.apk"
+          name: app-release
+          path: "app/build/outputs/apk/release/app-release.apk"
           retention-days: 14
           archive: false
