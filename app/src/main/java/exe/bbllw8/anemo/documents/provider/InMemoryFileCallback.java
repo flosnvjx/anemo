@@ -49,7 +49,7 @@ public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
                 if (grow > 0) {
                     vfs.release(grow);
                 }
-                throw new ErrnoException("onWrite", OsConstants.ENOSPC);
+                throw new ErrnoException("onWrite", mapErrno(-written));
             }
             if (newEnd > node.size) {
                 node.size = newEnd;
@@ -57,6 +57,16 @@ public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
             node.lastModified = System.currentTimeMillis();
             return written;
         }
+    }
+
+    private static int mapErrno(int errno) {
+        if (errno == OsConstants.EINVAL) {
+            return OsConstants.EINVAL;
+        }
+        if (errno == OsConstants.EFBIG) {
+            return OsConstants.EFBIG;
+        }
+        return OsConstants.ENOSPC;
     }
 
     @Override

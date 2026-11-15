@@ -3,10 +3,14 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 #include <jni.h>
+#include <errno.h>
 #include <malloc.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* Practical cap so an absurd offset maps to EFBIG instead of overcommit-then-OOM-kill. */
+#define MAX_FILE_SIZE ((uint64_t)1 << 40)  /* 1 TiB */
 
 typedef struct {
     uint8_t *ptr;
@@ -101,18 +105,24 @@ Java_exe_bbllw8_anemo_documents_vfs_NativeMemory_nativeWrite(
         jbyteArray src, jint srcOff, jint len) {
     (void)clazz;
     NativeBuffer *buf = buf_from_handle(handle);
-    if (buf == NULL || offset < 0 || len < 0 || srcOff < 0) {
-        return -1;
+    if (buf == NULL) {
+        return -EINVAL;
+    }
+    if (offset < 0 || len < 0 || srcOff < 0) {
+        return -EINVAL;
     }
     size_t off = (size_t)offset;
     size_t end = off + (size_t)len;
     if (end < off) {
-        return -1;
+        return -EFBIG;
+    }
+    if ((uint64_t)end > MAX_FILE_SIZE) {
+        return -EFBIG;
     }
     if (end > buf->cap) {
         grow_buffer(buf, end);
         if (end > buf->cap) {
-            return -1;
+            return -ENOSPC;
         }
     }
     if (off > buf->size) {
@@ -137,6 +147,9 @@ Java_exe_bbllw8_anemo_documents_vfs_NativeMemory_nativeTruncate(
         return JNI_FALSE;
     }
     size_t ns = (size_t)newSize;
+    if ((uint64_t)ns > MAX_FILE_SIZE) {
+        return JNI_FALSE;
+    }
     if (ns > buf->cap) {
         grow_buffer(buf, ns);
         if (ns > buf->cap) {

@@ -288,25 +288,27 @@ public final class Vfs {
 
     private VfsNode copyRecursive(VfsNode source, String parentId, String name) {
         if (!source.isDirectory) {
-            final long size = source.size;
-            if (size > 0 && !tryReserve(size)) {
-                return null;
-            }
-            final VfsNode copy = createNode(parentId, name, false, null);
-            if (copy == null) {
-                if (size > 0) {
-                    release(size);
+            synchronized (source) {
+                final long size = source.size;
+                if (size > 0 && !tryReserve(size)) {
+                    return null;
                 }
-                return null;
+                final VfsNode copy = createNode(parentId, name, false, null);
+                if (copy == null) {
+                    if (size > 0) {
+                        release(size);
+                    }
+                    return null;
+                }
+                if (size > 0
+                        && !NativeMemory.nativeCopy(source.nativeHandle, copy.nativeHandle)) {
+                    release(size);
+                    delete(copy.id);
+                    return null;
+                }
+                copy.size = size;
+                return copy;
             }
-            if (size > 0
-                    && !NativeMemory.nativeCopy(source.nativeHandle, copy.nativeHandle)) {
-                release(size);
-                delete(copy.id);
-                return null;
-            }
-            copy.size = size;
-            return copy;
         }
         final VfsNode copy = createNode(parentId, name, true, null);
         if (copy == null) {

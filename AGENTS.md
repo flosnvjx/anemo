@@ -68,5 +68,9 @@ Proxy callback reads, writes, and truncates must be synchronized on the target n
 
 Deletion of a file node must acquire the node monitor before freeing the native buffer, so an in-flight callback cannot use a freed handle. The same applies to deleteChildren. Lock ordering is always Vfs monitor first, then node monitor; never the other way.
 
+Copying a file node must acquire the source node monitor while reading its size and copying its native buffer, so the copy captures a consistent snapshot and quota accounting matches the bytes actually copied.
+
+The native write path reports failures as negative errno values: EINVAL for a bad argument (null handle, negative offset, negative length, negative array offset), EFBIG for an overflowed end offset or a resulting file size above the 1 TiB cap, and ENOSPC for allocation failure or quota exhaustion. Callers must map these to android.system.OsConstants values when raising android.system.ErrnoException.
+
 Native buffers are owned by VfsNode instances; every nativeAlloc must be paired with a nativeFree on delete or shutdown.
 
