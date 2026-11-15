@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 2bllw8
+ * Copyright (c) 2024 2bllw8
  * SPDX-License-Identifier: GPL-3.0-only
  */
 package exe.bbllw8.anemo.config;
@@ -24,6 +24,7 @@ import exe.bbllw8.anemo.config.password.ChangePasswordDialog;
 import exe.bbllw8.anemo.config.password.SetPasswordDialog;
 import exe.bbllw8.anemo.lock.LockStore;
 import exe.bbllw8.anemo.lock.UnlockActivity;
+import exe.bbllw8.anemo.power.BatteryOptimizationHelper;
 import exe.bbllw8.anemo.shell.AnemoShell;
 
 public final class ConfigurationActivity extends Activity {
@@ -31,6 +32,7 @@ public final class ConfigurationActivity extends Activity {
     private ViewGroup rootView;
     private TextView passwordSetView;
     private TextView changeLockView;
+    private TextView batteryOptimizationView;
     private Switch biometricSwitch;
 
     private LockStore lockStore;
@@ -66,10 +68,9 @@ public final class ConfigurationActivity extends Activity {
             }
         });
 
-        final Switch autoLockSwitch = findViewById(R.id.configuration_auto_lock);
-        autoLockSwitch.setChecked(lockStore.isAutoLockEnabled());
-        autoLockSwitch.setOnCheckedChangeListener(
-                (v, isChecked) -> lockStore.setAutoLockEnabled(isChecked));
+        batteryOptimizationView = findViewById(R.id.configuration_battery_optimization);
+        batteryOptimizationView.setOnClickListener(
+                $ -> BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(this));
 
         biometricSwitch = findViewById(R.id.configuration_biometric_unlock);
         biometricSwitch.setVisibility(lockStore.canAuthenticateBiometric()
@@ -80,6 +81,13 @@ public final class ConfigurationActivity extends Activity {
                 (v, isChecked) -> lockStore.setBiometricUnlockEnabled(isChecked));
 
         setupPasswordViews();
+        updateBatteryOptimizationView();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateBatteryOptimizationView();
     }
 
     @Override
@@ -102,6 +110,14 @@ public final class ConfigurationActivity extends Activity {
         final boolean enableViews = !lockStore.isLocked();
         passwordSetView.setEnabled(enableViews);
         biometricSwitch.setEnabled(enableViews);
+    }
+
+    private void updateBatteryOptimizationView() {
+        final boolean exempt = BatteryOptimizationHelper
+                .isIgnoringBatteryOptimizations(getApplicationContext());
+        batteryOptimizationView.setText(exempt
+                ? R.string.configuration_battery_optimization_done
+                : R.string.configuration_battery_optimization);
     }
 
     private final Consumer<Boolean> onLockChanged = isLocked -> {
@@ -130,3 +146,4 @@ public final class ConfigurationActivity extends Activity {
         });
     }
 }
+

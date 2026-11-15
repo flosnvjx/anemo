@@ -1,11 +1,14 @@
 /*
- * Copyright (c) 2022 2bllw8
+ * Copyright (c) 2024 2bllw8
  * SPDX-License-Identifier: GPL-3.0-only
  */
 package exe.bbllw8.anemo.lock;
 
+import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.hardware.biometrics.BiometricPrompt;
 import android.os.Build;
 import android.os.Bundle;
@@ -24,14 +27,18 @@ import java.util.concurrent.Executor;
 import exe.bbllw8.anemo.R;
 import exe.bbllw8.anemo.config.ConfigurationActivity;
 import exe.bbllw8.anemo.config.password.TextListener;
+import exe.bbllw8.anemo.power.BatteryOptimizationHelper;
+import exe.bbllw8.anemo.power.KeepAliveService;
 import exe.bbllw8.anemo.shell.LauncherActivity;
 
 public final class UnlockActivity extends Activity {
     public static final String OPEN_AFTER_UNLOCK = "open_after_unlock";
     private static final int MIN_PASSWORD_LENGTH = 4;
+    private static final int NOTIFICATION_PERMISSION_REQ = 42;
 
     private LockStore lockStore;
     private Runnable onUnlocked;
+    private boolean promptedBatteryOptimization;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -39,6 +46,7 @@ public final class UnlockActivity extends Activity {
 
         lockStore = LockStore.getInstance(this);
         onUnlocked = getOnUnlocked(getIntent());
+        maybePromptForBatteryOptimization();
         if (lockStore.hasPassword()) {
             if (lockStore.isBiometricUnlockEnabled()) {
                 unlockViaBiometricAuthentication();
@@ -86,7 +94,49 @@ public final class UnlockActivity extends Activity {
 
     private void doUnlock() {
         lockStore.unlock();
+        maybeRequestNotificationPermission();
         onUnlocked.run();
+    }
+
+    private void maybePromptForBatteryOptimization() {
+        if (promptedBatteryOptimization) {
+            return;
+        }
+        promptedBatteryOptimization = true;
+        if (BatteryOptimizationHelper.isIgnoringBatteryOptimizations(this)) {
+            return;
+        }
+        new AlertDialog.Builder(this, R.style.DialogTheme)
+                .setTitle(R.string.battery_optimization_title)
+                .setMessage(R.string.battery_optimization_message)
+                .setPositiveButton(R.string.battery_optimization_enable,
+                        (d, which) -> BatteryOptimizationHelper
+                                .requestIgnoreBatteryOptimizations(this))
+                .setNegativeButton(R.string.battery_optimization_later, null)
+                .show();
+    }
+
+    private void maybeRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < 33) {
+            KeepAliveService.start(this);
+            return;
+        }
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) {
+            KeepAliveService.start(this);
+        } else {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    NOTIFICATION_PERMISSION_REQ);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                           int[] grantResults) {
+        if (requestCode == NOTIFICATION_PERMISSION_REQ && grantResults.length > 0
+                && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            KeepAliveService.start(this);
+        }
     }
 
     @RequiresApi(29)
@@ -101,7 +151,6 @@ public final class UnlockActivity extends Activity {
                 .build();
 
         if (Build.VERSION.SDK_INT > 33) {
-            // Delay by 50ms otherwise the service gives an error
             new Handler(Looper.getMainLooper()).postDelayed(() ->
                     promptBiometricAuthentication(prompt, executor), 50);
         } else {
@@ -110,8 +159,7 @@ public final class UnlockActivity extends Activity {
     }
 
     @RequiresApi(29)
-    public void promptBiometricAuthentication(BiometricPrompt prompt,
-                                              Executor executor) {
+    public void promptBiometricAuthentication(BiometricPrompt prompt, Executor executor) {
         final CancellationSignal cancellationSignal = new CancellationSignal();
         cancellationSignal.setOnCancelListener(this::finish);
         prompt.authenticate(cancellationSignal, executor,
@@ -151,3 +199,4 @@ public final class UnlockActivity extends Activity {
         }
     }
 }
+

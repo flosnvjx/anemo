@@ -1,5 +1,5 @@
 <!--
-  ~ Copyright (c) 2021 2bllw8
+  ~ Copyright (c) 2024 2bllw8
   ~ SPDX-License-Identifier: GPL-3.0-only
   -->
 <resources>
@@ -62,5 +62,17 @@
     <string name="configuration_storage_lock">Lock storage access</string>
     <string name="configuration_storage_unlock">Unlock storage access</string>
     <string name="configuration_storage_unlock_biometric">Allow storage unlock with biometric access</string>
-    <string name="configuration_storage_lock_auto">Automatically lock access after 15 minutes</string>
+    <string name="configuration_battery_optimization">Ignore battery optimizations</string>
+    <string name="configuration_battery_optimization_done">Battery optimizations are disabled</string>
+
+    <string name="battery_optimization_title">Keep Anemo available</string>
+    <string name="battery_optimization_message">Allow Anemo to run without battery restrictions so the in-memory storage stays available to other apps. You can change this later in Configuration.</string>
+    <string name="battery_optimization_enable">Allow</string>
+    <string name="battery_optimization_later">Later</string>
+
+    <string name="keep_alive_channel_name">Storage keep-alive</string>
+    <string name="keep_alive_channel_description">Keeps the in-memory Anemo storage available while files are in use.</string>
+    <string name="keep_alive_notification_title">Anemo storage is active</string>
+    <string name="keep_alive_notification_text">Anemo keeps its private storage in memory while it is in use.</string>
 </resources>
+

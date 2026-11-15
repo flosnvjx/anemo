@@ -1,5 +1,5 @@
 <!--
-  ~ Copyright (c) 2022 2bllw8
+  ~ Copyright (c) 2024 2bllw8
   ~ SPDX-License-Identifier: GPL-3.0-only
   -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
@@ -57,16 +57,6 @@
             tools:text="@string/configuration_password_set" />
 
         <Switch
-            android:id="@+id/configuration_auto_lock"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:foreground="?android:attr/selectableItemBackground"
-            android:minHeight="56dp"
-            android:paddingHorizontal="16dp"
-            android:text="@string/configuration_storage_lock_auto"
-            android:textSize="16sp" />
-
-        <Switch
             android:id="@+id/configuration_biometric_unlock"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -75,5 +65,25 @@
             android:paddingHorizontal="16dp"
             android:text="@string/configuration_storage_unlock_biometric"
             android:textSize="16sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:paddingHorizontal="16dp"
+            android:text="@string/configuration_battery_optimization"
+            android:textColor="?android:attr/colorAccent" />
+
+        <TextView
+            android:id="@+id/configuration_battery_optimization"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:foreground="?android:attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:minHeight="56dp"
+            android:paddingHorizontal="16dp"
+            android:textColor="?android:textColorPrimary"
+            android:textSize="16sp"
+            tools:text="@string/configuration_battery_optimization" />
     </LinearLayout>
 </ScrollView>
