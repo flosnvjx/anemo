@@ -17,7 +17,8 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
     private static final String PREFS = "storage_settings";
     private static final String KEY_THUMBNAILS = "thumbnails_enabled";
     private static final String KEY_QUOTA_BYTES = "quota_bytes";
-    private static final long DEFAULT_UNSET = -2L;
+    private static final String KEY_BATTERY_PROMPT_SHOWN = "battery_prompt_shown";
+    private static final String KEY_NOTIFICATION_PROMPT_SHOWN = "notification_prompt_shown";
 
     public static final long UNLIMITED = -1L;
 
@@ -100,6 +101,22 @@ public final class StorageSettings implements SharedPreferences.OnSharedPreferen
 
     public void resetQuotaToDefault() {
         preferences.edit().putLong(KEY_QUOTA_BYTES, defaultQuotaBytes()).apply();
+    }
+
+    public boolean wasBatteryPromptShown() {
+        return preferences.getBoolean(KEY_BATTERY_PROMPT_SHOWN, false);
+    }
+
+    public void markBatteryPromptShown() {
+        preferences.edit().putBoolean(KEY_BATTERY_PROMPT_SHOWN, true).apply();
+    }
+
+    public boolean wasNotificationPromptShown() {
+        return preferences.getBoolean(KEY_NOTIFICATION_PROMPT_SHOWN, false);
+    }
+
+    public void markNotificationPromptShown() {
+        preferences.edit().putBoolean(KEY_NOTIFICATION_PROMPT_SHOWN, true).apply();
     }
 
     private static long defaultQuotaBytes() {

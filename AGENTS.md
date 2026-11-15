@@ -12,6 +12,8 @@ documents/provider/ holds the DocumentsProvider implementation and the StorageMa
 
 documents/home/ holds shared document authority and root id constants.
 
+documents/settings/ holds storage settings such as the quota and the thumbnail toggle.
+
 lock/ holds password and biometric lock state.
 
 config/ holds configuration UI and password dialogs.
@@ -28,9 +30,13 @@ resources live under app/src/main/res.
 
 File contents live entirely in memory. Use StorageManager.openProxyFileDescriptor plus the in-memory VFS. Do not add memfd, tmpfs, cacheDir, or any disk fallback.
 
+The application uses android:largeHeap="true". The storage quota defaults to half of Runtime.getRuntime().maxMemory(). For files much larger than the heap, native memory (JNI plus direct ByteBuffer) would be required; do not attempt to fake this with disk.
+
 The DocumentsProvider must not be ejectable or unmountable. Do not set Root.FLAG_SUPPORTS_EJECT and do not implement ejectRoot.
 
-The DocumentsProvider must not be exposed through a Quick Settings tile or an auto-lock job service. Keep the lock surface limited to the password/biometric unlock activity and the configuration activity.
+The DocumentsProvider must not be exposed through a Quick Settings tile or an auto-lock job service.
+
+First-run battery optimization and notification permission prompts are shown from UnlockActivity, which LauncherActivity routes through when needed. If the system prompt cannot be shown, the user can reach the same settings from ConfigurationActivity.
 
 Prefer framework APIs over third-party libraries. Do not introduce new dependencies.
 

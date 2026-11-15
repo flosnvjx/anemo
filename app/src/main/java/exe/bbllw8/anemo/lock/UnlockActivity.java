@@ -27,6 +27,7 @@ import java.util.concurrent.Executor;
 import exe.bbllw8.anemo.R;
 import exe.bbllw8.anemo.config.ConfigurationActivity;
 import exe.bbllw8.anemo.config.password.TextListener;
+import exe.bbllw8.anemo.documents.settings.StorageSettings;
 import exe.bbllw8.anemo.power.BatteryOptimizationHelper;
 import exe.bbllw8.anemo.power.KeepAliveService;
 import exe.bbllw8.anemo.shell.LauncherActivity;
@@ -37,25 +38,29 @@ public final class UnlockActivity extends Activity {
     private static final int NOTIFICATION_PERMISSION_REQ = 42;
 
     private LockStore lockStore;
+    private StorageSettings storageSettings;
     private Runnable onUnlocked;
-    private boolean promptedBatteryOptimization;
+    private Runnable pendingPermissionContinuation;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         lockStore = LockStore.getInstance(this);
+        storageSettings = StorageSettings.getInstance(this);
         onUnlocked = getOnUnlocked(getIntent());
-        maybePromptForBatteryOptimization();
-        if (lockStore.hasPassword()) {
-            if (lockStore.isBiometricUnlockEnabled()) {
-                unlockViaBiometricAuthentication();
+
+        maybePromptForBatteryOptimization(() -> {
+            if (lockStore.hasPassword()) {
+                if (lockStore.isBiometricUnlockEnabled()) {
+                    unlockViaBiometricAuthentication();
+                } else {
+                    setupUI();
+                }
             } else {
-                setupUI();
+                doUnlock();
             }
-        } else {
-            doUnlock();
-        }
+        });
     }
 
     private void setupUI() {
@@ -94,48 +99,60 @@ public final class UnlockActivity extends Activity {
 
     private void doUnlock() {
         lockStore.unlock();
-        maybeRequestNotificationPermission();
-        onUnlocked.run();
+        maybeRequestNotificationPermission(() -> onUnlocked.run());
     }
 
-    private void maybePromptForBatteryOptimization() {
-        if (promptedBatteryOptimization) {
-            return;
-        }
-        promptedBatteryOptimization = true;
-        if (BatteryOptimizationHelper.isIgnoringBatteryOptimizations(this)) {
+    private void maybePromptForBatteryOptimization(Runnable continuation) {
+        if (BatteryOptimizationHelper.isIgnoringBatteryOptimizations(this)
+                || storageSettings.wasBatteryPromptShown()) {
+            continuation.run();
             return;
         }
         new AlertDialog.Builder(this, R.style.DialogTheme)
                 .setTitle(R.string.battery_optimization_title)
                 .setMessage(R.string.battery_optimization_message)
-                .setPositiveButton(R.string.battery_optimization_enable,
-                        (d, which) -> BatteryOptimizationHelper
-                                .requestIgnoreBatteryOptimizations(this))
+                .setPositiveButton(R.string.battery_optimization_enable, (d, which) ->
+                        BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(this))
                 .setNegativeButton(R.string.battery_optimization_later, null)
+                .setOnDismissListener(d -> {
+                    storageSettings.markBatteryPromptShown();
+                    continuation.run();
+                })
                 .show();
     }
 
-    private void maybeRequestNotificationPermission() {
+    private void maybeRequestNotificationPermission(Runnable continuation) {
         if (Build.VERSION.SDK_INT < 33) {
             KeepAliveService.start(this);
+            continuation.run();
             return;
         }
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 == PackageManager.PERMISSION_GRANTED) {
             KeepAliveService.start(this);
-        } else {
-            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},
-                    NOTIFICATION_PERMISSION_REQ);
+            continuation.run();
+            return;
         }
+        pendingPermissionContinuation = continuation;
+        requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                NOTIFICATION_PERMISSION_REQ);
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions,
                                            int[] grantResults) {
-        if (requestCode == NOTIFICATION_PERMISSION_REQ && grantResults.length > 0
-                && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            KeepAliveService.start(this);
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == NOTIFICATION_PERMISSION_REQ) {
+            storageSettings.markNotificationPromptShown();
+            if (grantResults.length > 0
+                    && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                KeepAliveService.start(this);
+            }
+            final Runnable c = pendingPermissionContinuation;
+            pendingPermissionContinuation = null;
+            if (c != null) {
+                c.run();
+            }
         }
     }
 
