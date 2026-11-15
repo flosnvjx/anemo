@@ -14,6 +14,9 @@ import exe.bbllw8.anemo.documents.vfs.Vfs;
 import exe.bbllw8.anemo.documents.vfs.VfsNode;
 
 public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
+    private static final long EIO_RETRY_DELAY_MS = 10L;
+    private static final long EIO_RETRY_MIN_FREE_HEAP_FRACTION = 20L;
+
     private final Vfs vfs;
     private final VfsNode node;
 
@@ -51,7 +54,19 @@ public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
             if (grow > 0 && !vfs.tryReserve(grow)) {
                 throw new ErrnoException("onWrite", OsConstants.ENOSPC);
             }
-            final int written = NativeMemory.nativeWrite(node.nativeHandle, offset, data, 0, size);
+            int written = NativeMemory.nativeWrite(node.nativeHandle, offset, data, 0, size);
+            if (written == -OsConstants.EIO && shouldRetryEio()) {
+                try {
+                    Thread.sleep(EIO_RETRY_DELAY_MS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    if (grow > 0) {
+                        vfs.release(grow);
+                    }
+                    throw new ErrnoException("onWrite", OsConstants.EIO);
+                }
+                written = NativeMemory.nativeWrite(node.nativeHandle, offset, data, 0, size);
+            }
             if (written < 0) {
                 if (grow > 0) {
                     vfs.release(grow);
@@ -67,6 +82,17 @@ public final class InMemoryFileCallback extends ProxyFileDescriptorCallback {
             node.lastModified = System.currentTimeMillis();
             return written;
         }
+    }
+
+    private static boolean shouldRetryEio() {
+        final Runtime rt = Runtime.getRuntime();
+        final long max = rt.maxMemory();
+        if (max <= 0) {
+            return true;
+        }
+        final long used = rt.totalMemory() - rt.freeMemory();
+        final long available = max - used;
+        return available > max / EIO_RETRY_MIN_FREE_HEAP_FRACTION;
     }
 
     private static int mapErrno(int errno) {

@@ -24,6 +24,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 
 import exe.bbllw8.anemo.R;
+import exe.bbllw8.anemo.config.ConfigurationActivity;
 import exe.bbllw8.anemo.documents.provider.AnemoDocumentProvider;
 import exe.bbllw8.anemo.documents.settings.StorageSettings;
 import exe.bbllw8.anemo.documents.vfs.IoStats;
@@ -42,6 +43,7 @@ public final class KeepAliveService extends Service {
     private PendingIntent contentPi;
     private PendingIntent nukePi;
     private PendingIntent nukeExitPi;
+    private PendingIntent configurePi;
 
     private HandlerThread meterThread;
     private Handler meterHandler;
@@ -175,6 +177,8 @@ public final class KeepAliveService extends Service {
         nukeExitPi = PendingIntent.getService(this, 2,
                 new Intent(this, KeepAliveService.class).setAction(ACTION_NUKE_EXIT),
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        configurePi = PendingIntent.getActivity(this, 3,
+                new Intent(this, ConfigurationActivity.class), PendingIntent.FLAG_IMMUTABLE);
     }
 
     private void onSettingsChanged() {
@@ -269,6 +273,10 @@ public final class KeepAliveService extends Service {
                                 android.R.drawable.ic_menu_close_clear_cancel),
                         getString(R.string.keep_alive_action_nuke_exit),
                         nukeExitPi).build())
+                .addAction(new Notification.Action.Builder(
+                        Icon.createWithResource(this, android.R.drawable.ic_menu_manage),
+                        getString(R.string.keep_alive_action_configure),
+                        configurePi).build())
                 .setOnlyAlertOnce(true)
                 .setOngoing(true)
                 .setShowWhen(false)
@@ -304,3 +312,4 @@ public final class KeepAliveService extends Service {
         return whole + "." + frac;
     }
 }
+

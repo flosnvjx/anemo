@@ -37,6 +37,7 @@ import exe.bbllw8.anemo.lock.LockStore;
 import exe.bbllw8.anemo.lock.UnlockActivity;
 import exe.bbllw8.anemo.power.BatteryOptimizationHelper;
 import exe.bbllw8.anemo.power.KeepAliveService;
+import exe.bbllw8.anemo.power.OemCompat;
 import exe.bbllw8.anemo.shell.AnemoShell;
 
 public final class ConfigurationActivity extends Activity {
@@ -138,6 +139,7 @@ public final class ConfigurationActivity extends Activity {
         updateThumbnailSubOptions();
         updateIoMeterSubOptions();
         updateStorageUsageView();
+        setupOemCompatViews();
 
         maybeRequestNotificationPermission();
         KeepAliveService.start(this);
@@ -197,6 +199,22 @@ public final class ConfigurationActivity extends Activity {
         final boolean enableViews = !lockStore.isLocked();
         passwordSetView.setEnabled(enableViews);
         biometricSwitch.setEnabled(enableViews);
+    }
+
+    private void setupOemCompatViews() {
+        final TextView oemHeader = findViewById(R.id.configuration_oem_header);
+        final TextView oemAutostart = findViewById(R.id.configuration_oem_autostart);
+        final TextView oemHint = findViewById(R.id.configuration_oem_hint);
+        if (OemCompat.isMiuiLike()) {
+            oemHeader.setVisibility(View.VISIBLE);
+            oemAutostart.setVisibility(View.VISIBLE);
+            oemHint.setVisibility(View.VISIBLE);
+            oemAutostart.setOnClickListener($ -> OemCompat.openAutostartSettings(this));
+        } else {
+            oemHeader.setVisibility(View.GONE);
+            oemAutostart.setVisibility(View.GONE);
+            oemHint.setVisibility(View.GONE);
+        }
     }
 
     private void updateBatteryOptimizationView() {

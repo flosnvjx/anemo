@@ -97,6 +97,10 @@
     <string name="configuration_battery_optimization">Ignore battery optimizations</string>
     <string name="configuration_battery_optimization_done">Battery optimizations are disabled</string>
 
+    <string name="configuration_oem_section">MIUI / HyperOS</string>
+    <string name="configuration_oem_autostart">Allow autostart</string>
+    <string name="configuration_oem_hint">Lock Anemo in the recents screen and set battery saver to No restrictions to prevent the system from killing large transfers.</string>
+
     <string name="battery_optimization_title">Keep Anemo available</string>
     <string name="battery_optimization_message">Allow Anemo to run without battery restrictions so the in-memory storage stays available to other apps. You can change this later in Configuration.</string>
     <string name="battery_optimization_enable">Allow</string>
@@ -109,4 +113,5 @@
     <string name="keep_alive_io_meter">↑ %1$s  ↓ %2$s</string>
     <string name="keep_alive_action_nuke">Nuke</string>
     <string name="keep_alive_action_nuke_exit">Nuke &amp; Exit</string>
+    <string name="keep_alive_action_configure">Configure</string>
 </resources>
